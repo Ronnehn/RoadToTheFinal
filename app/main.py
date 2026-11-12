@@ -17,6 +17,20 @@ from .game import GROUPS, State
 BASE_DIR = Path(__file__).resolve().parent.parent
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
+
+
+def admin_accounts():
+    """Organiser accounts from the environment (never stored in the code):
+    ADMIN_USERS="name1:password1;name2:password2" and/or ADMIN_USERNAME + ADMIN_PASSWORD."""
+    accounts = {}
+    for part in os.getenv("ADMIN_USERS", "").split(";"):
+        if ":" in part:
+            u, p = part.split(":", 1)
+            if u.strip() and p:
+                accounts[u.strip().lower()] = p
+    if ADMIN_PASSWORD:
+        accounts.setdefault(ADMIN_USERNAME.strip().lower(), ADMIN_PASSWORD)
+    return accounts
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-only-change-me")
 ON_RENDER = bool(os.getenv("RENDER"))
 MAX_LOGO = 2 * 1024 * 1024
@@ -32,8 +46,8 @@ templates.env.globals.update(crest=game.crest, nl=game.nl, out_text=game.out_tex
 @app.on_event("startup")
 def startup():
     db.init_db()
-    if not ADMIN_PASSWORD:
-        print("WARNING: ADMIN_PASSWORD is not set; the organiser login is disabled.")
+    if not admin_accounts():
+        print("WARNING: no organiser accounts (set ADMIN_USERS or ADMIN_PASSWORD); the organiser login is disabled.")
 
 
 def is_admin(request):
@@ -42,7 +56,7 @@ def is_admin(request):
 
 def page(request, template, status_code=200, **ctx):
     ctx.setdefault("state", None)
-    ctx.update(is_admin=is_admin(request), picks_open=game.picks_open(), deadline_label=game.deadline_label(),
+    ctx.update(is_admin=is_admin(request), admin_user=request.session.get("admin_user", ""), picks_open=game.picks_open(), deadline_label=game.deadline_label(),
                deadline_iso=game.deadline().isoformat(), active_tab=ctx.get("active_tab", ""))
     return templates.TemplateResponse(request, template, ctx, status_code=status_code)
 
@@ -56,6 +70,40 @@ def pick_round(state, request):
 
 
 # ---------------- public ----------------
+def board_context(s, rnd, hide):
+    rows = s.standings(rnd) if rnd else []
+    prev = s.standings(rnd - 1) if rnd and (rnd - 1) in s.rounds else []
+    return dict(state=s, rnd=rnd, rows=rows, prev_rank={e["id"]: e["rank"] for e in prev},
+                prev_score={e["id"]: e["score"] for e in prev},
+                ko_now=[t for t in s.teams if s.outs.get(t["id"]) and s.outs[t["id"]]["round"] == rnd],
+                ko_before=[t for t in s.teams if s.outs.get(t["id"]) and s.outs[t["id"]]["round"] < rnd],
+                hide=hide, still_in=len(s.active_after(rnd)) if rnd else len(s.teams))
+
+
+@app.get("/admin/simulate", response_class=HTMLResponse)
+def simulate(request: Request):
+    require_admin(request)
+    s = State()
+    q = request.query_params
+    real_last = s.last_round
+
+    def num(k, default, lo, hi):
+        try:
+            return max(lo, min(hi, int(q.get(k, default))))
+        except ValueError:
+            return default
+    start = num("start", real_last + 1 if real_last else 1, 1, 14)
+    n = num("rounds", 5, 1, 14)
+    seed = num("seed", 2026, 0, 10**9)
+    sim = None
+    if q.get("go"):
+        sim = game.simulate(s, start, n, seed, game.settings())
+    rnd = pick_round(s, request) if sim else None
+    ctx = board_context(s, rnd, False) if sim else dict(state=s, rnd=None, rows=[], hide=False)
+    return page(request, "admin/simulate.html", active_tab="simulate", start=start, n=n, seed=seed, sim=sim,
+                real_last=real_last, **ctx)
+
+
 @app.get("/", response_class=HTMLResponse)
 def leaderboard(request: Request):
     s = State()
@@ -266,12 +314,16 @@ async def login(request: Request):
     recent = [t for t in _fails.get(ip, []) if now - t < 600]
     if len(recent) >= 5:
         return page(request, "admin/login.html", error="Too many attempts. Try again in 10 minutes.")
-    u, p = (form.get("username") or "").encode(), (form.get("password") or "").encode()
-    if not (ADMIN_PASSWORD and hmac.compare_digest(u, ADMIN_USERNAME.encode()) and hmac.compare_digest(p, ADMIN_PASSWORD.encode())):
+    accounts = admin_accounts()
+    user = (form.get("username") or "").strip().lower()
+    expected = accounts.get(user, "")
+    ok = bool(expected) and hmac.compare_digest((form.get("password") or "").encode(), expected.encode())
+    if not ok:
         _fails[ip] = recent + [now]
         time.sleep(1)
-        return page(request, "admin/login.html", error="ADMIN_PASSWORD is not set on the server." if not ADMIN_PASSWORD else "Wrong username or password.")
+        return page(request, "admin/login.html", error="No organiser accounts are set on the server." if not accounts else "Wrong username or password.")
     request.session["admin"] = True
+    request.session["admin_user"] = user
     return RedirectResponse("/admin", 303)
 
 

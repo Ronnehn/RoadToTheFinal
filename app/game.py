@@ -618,3 +618,76 @@ def parse_entries_text(text, state):
         else:
             by_key[r["key"]] = r
     return results
+
+
+
+# ---- test run: random rounds in memory, nothing is saved ----
+def simulate(state, start, n, seed, s):
+    """Play n random rounds from round `start` on a copy of the state (in place on `state`, which callers
+    create fresh and never save). Returns {round: [match dicts]} and notes."""
+    import random
+    rng = random.Random(seed)
+    EXT = ["Excelsior '20", "SV Oranjeboys", "Kampong Kickers", "FC Polderjongens", "VV De Dijk", "Rapid Rotterdam",
+           "FC Grachtengordel", "SC Molenwiek", "Tukkers United", "VV Zandvoort"]
+    # rounds after the start are replaced by the simulation
+    for r in [r for r in state.rounds if r >= start]:
+        state.rounds.pop(r); state.played.pop(r, None)
+    state.outs = {k: v for k, v in state.outs.items() if v["round"] < start}
+    log, notes = {}, []
+    for rnd in range(start, start + n):
+        if rnd not in BASE:
+            notes.append("The points table stops at round 14, so the test run stops there.")
+            break
+        prev = rnd - 1 if (rnd - 1) in state.rounds else None
+        active = [t for t in state.teams if not (prev and state.is_out(t["id"], prev))]
+        if not active:
+            notes.append(f"No teams left after round {rnd - 1}.")
+            break
+        rng.shuffle(active)
+        pairs, i = [], 0
+        while i < len(active):   # sometimes two of our teams meet each other
+            if i + 1 < len(active) and rng.random() < 0.3:
+                pairs.append((active[i], active[i + 1])); i += 2
+            else:
+                pairs.append((active[i], None)); i += 1
+        state.rounds[rnd], state.played[rnd], matches = {}, {}, []
+
+        def play(team, gf, ga, dec, pf, pa, opp):
+            tid = team["id"]
+            pav = state.rounds[prev][tid] if prev else 0
+            ppl = state.played[prev][tid] if prev else 0
+            res = compute_match({"gf": gf, "ga": ga, "dec": dec, "pf": pf, "pa": pa, "etf": 0, "eta": 0}, rnd, pav, ppl, s)
+            state.rounds[rnd][tid] = round(res["avg"], 2)
+            state.played[rnd][tid] = res["played"]
+            if res["lost"]:
+                state.outs[tid] = {"team_id": tid, "round": rnd, "opp": opp, "how": dec, "score": f"{gf}-{ga}",
+                                   "pens": f"{pf}-{pa}" if dec == "penalties" else ""}
+            matches.append({"team": team, "opp": opp, "gf": gf, "ga": ga, "dec": dec, "pf": pf, "pa": pa,
+                            "points": res["points"], "lost": res["lost"]})
+
+        for a, b in pairs:
+            if b:   # two of our teams: even match
+                ga_, gb_ = rng.choice([0, 1, 1, 2, 2, 3, 4]), rng.choice([0, 1, 1, 2, 2, 3, 4])
+            else:   # against an outside team our teams usually win (about 3 out of 4)
+                ga_, gb_ = rng.choice([1, 2, 2, 3, 3, 4, 5, 6]), rng.choice([0, 0, 0, 1, 1, 1, 2, 3])
+            dec, pa_, pb_ = "regular", None, None
+            if ga_ == gb_:
+                if rng.random() < 0.5:   # someone scores in extra time
+                    dec = "extra"
+                    if rng.random() < 0.5: ga_ += 1
+                    else: gb_ += 1
+                else:
+                    dec = "penalties"
+                    pa_ = rng.randint(2, 5); pb_ = rng.choice([x for x in range(1, 6) if x != pa_])
+            opp_name = b["name"] if b else rng.choice(EXT)
+            play(a, ga_, gb_, dec, pa_, pb_, opp_name)
+            if b:
+                play(b, gb_, ga_, dec, pb_, pa_, a["name"])
+        # teams already out keep their frozen average
+        for t in state.teams:
+            if prev and state.is_out(t["id"], prev):
+                state.rounds[rnd][t["id"]] = state.rounds[prev][t["id"]]
+                state.played[rnd][t["id"]] = state.played[prev][t["id"]]
+        log[rnd] = sorted(matches, key=lambda m: (m["team"]["grp"], m["team"]["name"]))
+    state.round_list = sorted(state.rounds)
+    return {"log": log, "notes": notes, "start": start}
