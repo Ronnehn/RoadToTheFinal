@@ -314,6 +314,7 @@ STATIC_LOGOS = {
     "De Snelle Jelles": "de-snelle-jelles.png",
     "Lazio Roma": "lazio-roma.png",
     "Revival": "revival.png",
+    "De Remmies": "de-remmies.png",
 }
 
 
