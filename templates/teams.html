@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block chip %}
+{% if state.round_list %}
+<form class="round-chip" method="get" action="/teams">
+  <label for="roundSel">Standings after</label>
+  <select id="roundSel" name="round" onchange="this.form.submit()">
+    {% for r in state.round_list %}<option value="{{ r }}" {% if r == rnd %}selected{% endif %}>Round {{ r }}</option>{% endfor %}
+  </select>
+</form>
+{% else %}{{ super() }}{% endif %}
+{% endblock %}
+{% block content %}
+<h2>{% if rnd %}Teams after round {{ rnd }}{% else %}The 24 cup teams{% endif %}</h2>
+<p class="lead">Each team's average points per match feeds every player's score.{% if hide %} How many players picked each team is shown after the deadline.{% endif %}</p>
+<div class="tablebox"><table class="teams">
+  <thead><tr><th>Pos</th><th></th><th>Team</th><th>Group</th><th>Cup</th><th class="r">This round</th><th class="r">Average</th>{% if not hide %}<th>Picked by</th>{% endif %}</tr></thead>
+  <tbody>
+  {% for t in rows %}
+    {% set o = state.outs.get(t.id) if rnd and state.is_out(t.id, rnd) else None %}
+    {% set p = prev.get(t.id) %}
+    <tr class="{{ 'is-out' if o }}">
+      <td class="pos num">{{ t.rank if rnd else '' }}</td>
+      <td>{% if p %}{% if p.rank > t.rank %}<span class="move up">▲{{ p.rank - t.rank }}</span>{% elif p.rank < t.rank %}<span class="move down">▼{{ t.rank - p.rank }}</span>{% else %}<span class="move same">–</span>{% endif %}{% endif %}</td>
+      <td><div class="tm">{{ crest(t, o is not none) }}<span><b>{{ t.name }}</b>{% if o %}<br><span class="out-note">{{ out_text(o) }}</span>{% endif %}</span></div></td>
+      <td><span class="poule-tag">{{ t.grp }}</span></td>
+      <td>{% if o %}<span class="badge out">Out R{{ o.round }}</span>{% else %}<span class="badge in">In</span>{% endif %}</td>
+      <td class="r num">{% if p and p.pts is not none and t.pts is not none and not (o and o.round < rnd) %}{% set g = t.pts - p.pts %}{{ '' if g < 0 else '+' }}{{ nl(g) }}{% else %}—{% endif %}</td>
+      <td class="r num"><b>{{ nl(t.pts) if t.pts is not none else '—' }}</b></td>
+      {% if not hide %}{% set n = state.picked_by(t.id)|length %}
+      <td><div style="display:flex;align-items:center;gap:8px"><div class="bar" style="width:70px"><i style="width:{{ (n / state.entries|length * 100) if state.entries else 0 }}%"></i></div><span class="num">{{ n }}</span></div></td>{% endif %}
+    </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% endblock %}
