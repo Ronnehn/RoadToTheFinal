@@ -47,6 +47,18 @@
 {% if next_round not in BASE %}
 <p class="warn">The points table only goes up to round 14, so there is nothing more to enter.</p>
 {% else %}
+<form method="post" action="/admin/results/paste-matches" class="panel">
+  <h2 style="margin-top:0">Paste all results at once</h2>
+  <p class="hint">One match per line, for example <code>The Fighting Hyenas 2-1 FC Xelcius</code>, <code>A.I. - Revival 1-1 (ns 4-3)</code> or <code>De Remmies 3-2 FCMF nv</code>. Lines without one of our teams are skipped. The lines below get filled in; check them and click Publish.</p>
+  <textarea name="text" spellcheck="false" aria-label="Paste match results" style="min-height:150px">{{ paste_text if paste_text is defined else '' }}</textarea>
+  <div class="btnrow"><button class="btn primary">Read results</button></div>
+  {% if paste_report is defined and paste_report %}
+  <p style="margin:10px 0 0"><span class="{{ 'okc' if not paste_report.missing else 'warn' }}">{{ paste_report.read }} teams filled in.</span>
+    {% if paste_report.missing %}<br><span class="warn">No result found for:</span> {{ paste_report.missing|join(', ') }}{% endif %}
+    {% if paste_report.unread %}<br><span class="warn">Couldn't read:</span> {{ paste_report.unread|join(' · ') }}{% endif %}
+    {% for n in paste_report.notes %}<br><span class="hint">{{ n }}</span>{% endfor %}</p>
+  {% endif %}
+</form>
 <p class="hint">Enter the final score (after extra time if it went that far). Points for round {{ next_round }}: win {{ nl(BASE[next_round], 0) }}, goals +501 for and −500 against. {{ 'Extra-time goals count.' if settings.et_goals == '1' else "Extra-time goals don't count: fill in how many were scored in extra time." }} {{ 'Shootout goals count.' if settings.pen_goals == '1' else "Shootout goals don't count." }}</p>
 <form method="post" action="/admin/results/matches" id="matchForm"
       data-round="{{ next_round }}" data-base="{{ BASE[next_round] }}" data-et="{{ settings.et_goals }}" data-pen="{{ settings.pen_goals }}">

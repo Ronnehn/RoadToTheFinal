@@ -5,9 +5,14 @@
   <h2>Picks are closed</h2>
   <p class="lead">The deadline was {{ deadline_label }}. Follow the game on the <a href="/">leaderboard</a>.</p>
 {% else %}
+  {% if editing %}
+  <h2>Change your six, {{ editing.name }}</h2>
+  <p class="lead">You can change your teams until {{ deadline_label }}, as long as nobody else has the exact same six. Your current teams are selected. <a href="/pick/new">Cancel</a></p>
+  {% else %}
   <h2>Make your pick</h2>
-  <p class="lead">Choose one team from each of the six groups. <b>Your picks are final once you submit.</b> Every player needs a different set of six. If yours is already taken, you'll see which teams you can swap in to make it unique.</p>
-  {% if not picks_open and is_admin %}<div class="notice">Picks are closed for players. As organiser you can still add a player.</div>{% endif %}
+  <p class="lead">Choose one team from each of the six groups. Every player needs a different set of six. If yours is already taken, you'll see which teams you can swap in to make it unique. You can change your teams until the deadline with your PIN. Already joined? <a href="/pick/change">Change my teams</a></p>
+  {% endif %}
+  {% if is_admin %}<div class="notice">Organiser: {% if editing %}you're editing {{ editing.name }}'s entry.{% else %}you're adding a player{% if not picks_open %} after the deadline{% endif %}. The PIN is optional; without one only you can change the entry.{% endif %}</div>{% endif %}
   {% if error %}<div class="err" role="alert">{{ error }}</div>{% endif %}
 
   <form method="post" action="/pick" id="pickForm">
@@ -30,9 +35,12 @@
 
     <div class="pickbar">
       <label for="pname" class="sr">Your name</label>
-      <input id="pname" name="name" placeholder="Your name (or Hattrick team)" autocomplete="name" maxlength="40" value="{{ form.get('name', '') }}" required>
+      <input id="pname" name="name" placeholder="Your name (or Hattrick team)" autocomplete="name" maxlength="40" value="{{ form.get('name', '') }}" required {% if editing and not is_admin %}readonly{% endif %}>
+      <label for="ppin" class="sr">PIN code</label>
+      <input id="ppin" name="pin" inputmode="numeric" pattern="[0-9]{4,8}" maxlength="8" autocomplete="off" style="flex:0 1 150px"
+             placeholder="{{ 'New PIN (optional)' if editing or is_admin else 'Choose a PIN (4–8 digits)' }}" {% if not editing and not is_admin %}required{% endif %}>
       <button type="button" class="btn" id="clearPick">Clear</button>
-      <button type="submit" class="btn primary" id="submitPick" disabled>Submit my six</button>
+      <button type="submit" class="btn primary" id="submitPick" disabled>{{ 'Save my changes' if editing else 'Submit my six' }}</button>
       <div class="status info" id="status">0 of 6 picked.</div>
       <div class="swaps" id="swaps" hidden></div>
     </div>
@@ -79,7 +87,7 @@ if (form) {
       submit.disabled = true;
     } else if (data && data.free) {
       statusEl.className = 'status ok';
-      statusEl.textContent = '✓ Nobody has this combination yet. Submit it to lock it in. You can’t change it afterwards.';
+      statusEl.textContent = '✓ Nobody else has this combination. You can change it until the deadline with your PIN.';
       submit.disabled = false;
     } else {
       statusEl.className = 'status info'; statusEl.textContent = 'Checking…'; submit.disabled = true;

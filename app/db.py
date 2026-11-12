@@ -86,7 +86,7 @@ GROUPS = {
 
 DEFAULT_SETTINGS = {
     "deadline": "2026-11-19T16:55",   # Europe/Amsterdam
-    "match_mode": "0",
+    "match_mode": "1",
     "et_goals": "1",
     "pen_goals": "0",
 }
@@ -104,6 +104,7 @@ SCHEMA = [
         name_key TEXT NOT NULL UNIQUE,
         combo_key TEXT NOT NULL UNIQUE,
         g1 INTEGER, g2 INTEGER, g3 INTEGER, g4 INTEGER, g5 INTEGER, g6 INTEGER,
+        pin_hash TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )""",
     """CREATE TABLE IF NOT EXISTS rtf_rounds (
@@ -128,9 +129,17 @@ SCHEMA = [
 ]
 
 
+MIGRATIONS = ["ALTER TABLE rtf_entries ADD COLUMN pin_hash TEXT"]
+
+
 def init_db():
     for stmt in SCHEMA:
         execute(stmt)
+    for stmt in MIGRATIONS:
+        try:
+            execute(stmt)
+        except Exception:
+            pass  # column already there
     for k, v in DEFAULT_SETTINGS.items():
         if not one("SELECT key FROM rtf_settings WHERE key = ?", (k,)):
             execute("INSERT INTO rtf_settings (key, value) VALUES (?, ?)", (k, v))

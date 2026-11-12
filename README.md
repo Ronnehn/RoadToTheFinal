@@ -12,8 +12,11 @@ Render's disk is wiped on every deploy.
 
 ## Rules built in
 
-- **Picks**: one team per group, final once submitted. If a six is already taken, the page refuses it and shows,
-  per group, which teams the player can swap in to make it unique. Names must be unique too.
+- **Picks**: one team per group. If a six is already taken, the page refuses it and shows, per group, which teams
+  the player can swap in to make it unique. Names must be unique too.
+- **Changing picks**: players choose a PIN (4–8 digits) when they join and can change their six under
+  "Change my teams" until the deadline, as long as nobody else has that exact six.
+- **Organiser**: add late entries (also after the deadline) and edit or remove anyone's entry under Organiser → Players.
 - **Deadline**: Thursday 19 November 2026, 16:55 (Dutch time) by default; change it under Organiser → Settings.
   Until the deadline, players only see who has joined; everyone's teams and the leaderboard appear after it.
 - **Points per match** (row = cup round): win / win after extra time / win on penalties / loss on penalties /
@@ -30,9 +33,13 @@ Organiser → **Enter results**:
 1. **Paste standings** (always on): paste the list as you get it (`positie / team / punten`), click Read,
    tick the teams that got knocked out, Publish. Your first paste can be the current standings
    (e.g. "Teams na ronde 13"); later rounds build on it.
-2. **Enter matches** (off until you turn it on in Settings): one line per team still in the cup. Enter the
-   score, opponent and how it was decided; the site calculates points with the table and knocks out losers.
-   Two switches decide whether extra-time goals and shootout goals count.
+2. **Enter matches**: paste all results at once, one match per line, e.g. `Team A 2-1 Team B`,
+   `Team A - Team B 1-1 (ns 4-3)` or `Team A 3-2 Team B nv`. The site fills in a line per team, shows the
+   points calculation, and knocks out every loser when you publish. You can also type or fix lines by hand.
+   Two switches in Settings decide whether extra-time goals and shootout goals count.
+
+**Forum tables**: Organiser → Forum tables gives the player standings, team standings and this round's
+knock-outs in Hattrick forum markup (`[table][tr][td]`), each with a Copy button.
 
 Made a mistake? Organiser → Rounds → **Remove round N** removes the latest round and its knock-outs.
 

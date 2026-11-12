@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Change my teams · Road to the Final{% endblock %}
+{% block content %}
+<form class="panel login" method="post" action="/pick/change">
+  <h2>Change my teams</h2>
+  <p class="hint">Enter the name and PIN you used when you joined. Changes are possible until {{ deadline_label }}.</p>
+  {% if error %}<div class="err">{{ error }}</div>{% endif %}
+  <div class="field"><label for="cn">Name</label><input id="cn" name="name" value="{{ name }}" required autofocus></div>
+  <div class="field"><label for="cp">PIN</label><input id="cp" name="pin" inputmode="numeric" maxlength="8" required autocomplete="off"></div>
+  <button class="btn primary" type="submit" style="width:100%">Open my six</button>
+  <p class="hint" style="margin-top:12px">Forgot your PIN? Ask the organiser.</p>
+</form>
+{% endblock %}
