@@ -21,9 +21,8 @@
       <span class="hint">Now: {{ deadline_label }}</span>
     </div>
     <div>
-      <label class="check"><input type="checkbox" name="match_mode" {% if settings.match_mode == '1' %}checked{% endif %}>
-        <span><b>Calculate points from match results</b><br><span class="hint">Off until the scoring rules are confirmed. Pasting standings always works.</span></span></label>
-      <div class="subset">
+      <b>Match scores</b><br><span class="hint">How goals count when you enter scores:</span>
+      <div>
         <label class="check"><input type="checkbox" name="et_goals" {% if settings.et_goals == '1' %}checked{% endif %}><span>Extra-time goals count for +501 / −500 <span class="tag">check rules</span></span></label>
         <label class="check"><input type="checkbox" name="pen_goals" {% if settings.pen_goals == '1' %}checked{% endif %}><span>Penalty shootout goals count <span class="tag">check rules</span></span></label>
       </div>

@@ -2,15 +2,11 @@
 {% block title %}Enter results · Road to the Final{% endblock %}
 {% block content %}
 <h2>Enter this week's results</h2>
-<p class="lead">{% if mode == 'paste' %}Paste the cup standings exactly as you get them (positie / team / punten). The site reads every team's average, then you tick who got knocked out.{% else %}Enter each team's cup match for round {{ next_round }}. The site works out the points with the table, updates the averages and knocks out every team that lost.{% endif %}</p>
+<p class="lead">{% if mode == 'matches' %}Paste or type this week's match scores (round {{ next_round }}). The site works out every team's points with the points table, updates the averages and knocks out every team that lost.{% else %}Alternative: if you already have each team's average points (positie / team / punten), paste that list instead and tick who got knocked out.{% endif %}</p>
 
 <div class="seg" role="tablist">
-  <a role="tab" class="segbtn" aria-selected="{{ 'true' if mode == 'paste' else 'false' }}" href="/admin/results?mode=paste">Paste standings</a>
-  {% if settings.match_mode == '1' %}
-  <a role="tab" class="segbtn" aria-selected="{{ 'true' if mode == 'matches' else 'false' }}" href="/admin/results?mode=matches">Enter matches</a>
-  {% else %}
-  <span class="segbtn" aria-disabled="true" title="Turn on under Organiser → Settings">Enter matches (off)</span>
-  {% endif %}
+  <a role="tab" class="segbtn" aria-selected="{{ 'true' if mode == 'matches' else 'false' }}" href="/admin/results?mode=matches">Match scores</a>
+  <a role="tab" class="segbtn" aria-selected="{{ 'true' if mode == 'paste' else 'false' }}" href="/admin/results?mode=paste">Team averages (alternative)</a>
 </div>
 
 {% if mode == 'paste' %}

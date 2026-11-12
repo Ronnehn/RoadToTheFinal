@@ -634,6 +634,19 @@ def simulate(state, start, n, seed, s):
         state.rounds.pop(r); state.played.pop(r, None)
     state.outs = {k: v for k, v in state.outs.items() if v["round"] < start}
     log, notes = {}, []
+    # no players yet: invent test players with unique sixes (in memory only)
+    state.demo_players = False
+    if not state.entries:
+        state.demo_players = True
+        taken = set()
+        for i in range(12):
+            while True:
+                six = [rng.choice([t["id"] for t in state.teams if t["grp"] == g]) for g in GROUPS]
+                if tuple(six) not in taken:
+                    taken.add(tuple(six)); break
+            state.entries.append({"id": -(i + 1), "name": f"Test player {i + 1}", **{f"g{j + 1}": six[j] for j in range(6)}})
+    # running total of match points per team, so the average can be checked as total ÷ matches
+    state.totals = {r: {tid: state.rounds[r][tid] * state.played[r].get(tid, 0) for tid in state.rounds[r]} for r in state.rounds}
     for rnd in range(start, start + n):
         if rnd not in BASE:
             notes.append("The points table stops at round 14, so the test run stops there.")
@@ -659,6 +672,7 @@ def simulate(state, start, n, seed, s):
             res = compute_match({"gf": gf, "ga": ga, "dec": dec, "pf": pf, "pa": pa, "etf": 0, "eta": 0}, rnd, pav, ppl, s)
             state.rounds[rnd][tid] = round(res["avg"], 2)
             state.played[rnd][tid] = res["played"]
+            state.totals.setdefault(rnd, {})[tid] = (state.totals.get(prev, {}).get(tid, 0) if prev else 0) + res["points"]
             if res["lost"]:
                 state.outs[tid] = {"team_id": tid, "round": rnd, "opp": opp, "how": dec, "score": f"{gf}-{ga}",
                                    "pens": f"{pf}-{pa}" if dec == "penalties" else ""}
@@ -688,6 +702,44 @@ def simulate(state, start, n, seed, s):
             if prev and state.is_out(t["id"], prev):
                 state.rounds[rnd][t["id"]] = state.rounds[prev][t["id"]]
                 state.played[rnd][t["id"]] = state.played[prev][t["id"]]
+                state.totals.setdefault(rnd, {})[t["id"]] = state.totals.get(prev, {}).get(t["id"], 0)
         log[rnd] = sorted(matches, key=lambda m: (m["team"]["grp"], m["team"]["name"]))
     state.round_list = sorted(state.rounds)
     return {"log": log, "notes": notes, "start": start}
+
+
+
+def random_free_six(state, picks, own_key=None, rng=None, tries=2000):
+    """Complete `picks` (group -> team id, may be partial) with random teams so the six is free.
+    Teams already out of the cup are skipped. Returns a dict group -> team id, or None."""
+    import random
+    rng = rng or random.Random()
+    taken = taken_keys() - ({own_key} if own_key else set())
+    last = state.last_round
+    pools = {g: [t["id"] for t in state.teams if t["grp"] == g and not state.is_out(t["id"], last)] for g in GROUPS}
+    for _ in range(tries):
+        trial = {g: picks.get(g) or rng.choice(pools[g]) for g in GROUPS if pools[g] or picks.get(g)}
+        if len(trial) < 6:
+            return None
+        if combo_key([trial[g] for g in GROUPS]) not in taken:
+            return trial
+    return None
+
+
+def add_test_players(state, n, seed):
+    """Add n made-up players with unique random sixes to the in-memory state (test run only)."""
+    import random
+    rng = random.Random(seed + 99)
+    used = {combo_key(state.picks(e)) for e in state.entries}
+    pools = {g: [t["id"] for t in state.teams if t["grp"] == g] for g in GROUPS}
+    added = 0
+    while added < n and len(used) < 4096:
+        six = [rng.choice(pools[g]) for g in GROUPS]
+        k = combo_key(six)
+        if k in used:
+            continue
+        used.add(k)
+        added += 1
+        state.entries.append({"id": -added, "name": f"Test player {added}", "combo_key": k,
+                              **{f"g{i + 1}": six[i] for i in range(6)}})
+

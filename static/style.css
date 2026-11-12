@@ -274,3 +274,5 @@ fieldset.poule { min-width: 0; }
 
 .crest.logo { background: #fff; border-radius: 4px; padding: 1px; overflow: hidden; }
 .crest.logo.crest-out img { filter: grayscale(1); opacity: .5; }
+
+.detail tr.sumrow td { border-top: 2px solid var(--line); border-bottom: 0; padding-top: 8px; }
