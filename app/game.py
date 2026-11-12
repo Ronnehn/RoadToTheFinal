@@ -296,13 +296,32 @@ def initials(name):
     return (named[0][0] + named[1][0]).upper()
 
 
+# logos shipped with the site (static/logos); an uploaded logo in the organiser area takes priority
+STATIC_LOGOS = {
+    "A.I.": "a-i.png",
+    "De Bankhangers": "de-bankhangers.png",
+    "Dé Biewies": "de-biewies.png",
+    "e-hollando": "e-hollando.png",
+    "ER Soccerteam": "er-soccerteam.png",
+    "FCMF": "fcmf.png",
+    "FC Xelcius": "fc-xelcius.png",
+    "The Fighting Hyenas": "the-fighting-hyenas.png",
+    "Limburgia FC": "limburgia-fc.png",
+    "miracle": "miracle.png",
+    "Sunbaked Surfers": "sunbaked-surfers.png",
+    "Warriors of Hearts United": "warriors-of-hearts-united.png",
+}
+
+
 def crest(team, out=False, size=""):
     """Real logo if uploaded, otherwise a generated shield."""
     cls = f"crest {size} {'crest-out' if out else ''}".strip()
     label = escape(team["name"]) + (" (out of the cup)" if out else "")
-    if team.get("logo_id"):
+    src = f"/files/{team['logo_id']}" if team.get("logo_id") else (
+        f"/static/logos/{STATIC_LOGOS[team['name']]}" if team["name"] in STATIC_LOGOS else None)
+    if src:
         x = '<span class="x">✕</span>' if out else ""
-        return Markup(f'<span class="{cls} logo"><img src="/files/{team["logo_id"]}" alt="{label}" loading="lazy">{x}</span>')
+        return Markup(f'<span class="{cls} logo"><img src="{src}" alt="{label}" loading="lazy">{x}</span>')
     h = int(hashlib.md5(team["name"].encode()).hexdigest(), 16)
     c1, c2 = PALETTE[h % len(PALETTE)]
     pat = (h >> 4) % 4

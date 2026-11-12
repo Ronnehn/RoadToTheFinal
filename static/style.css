@@ -271,3 +271,6 @@ fieldset.poule { min-width: 0; }
 .segbtn[aria-disabled="true"] { opacity: .55; cursor: not-allowed; }
 
 [hidden] { display: none !important; }
+
+.crest.logo { background: #fff; border-radius: 4px; padding: 1px; overflow: hidden; }
+.crest.logo.crest-out img { filter: grayscale(1); opacity: .5; }
