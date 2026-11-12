@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Organiser · Road to the Final{% endblock %}
+{% block content %}
+{% if msg %}<div class="notice">{{ msg }}</div>{% endif %}
+<h2>Organiser</h2>
+<p class="lead">Only you see this. Players join on the pick page until the deadline; you enter results each week under <a href="/admin/results">Enter results</a>.</p>
+
+<div class="summary">
+  <div class="stat"><small>Players</small><b class="num">{{ state.entries|length }}</b></div>
+  <div class="stat"><small>Picks</small><b>{{ 'Open' if picks_open else 'Closed' }}</b></div>
+  <div class="stat"><small>Latest round</small><b class="num">{{ state.last_round or '–' }}</b></div>
+  <div class="stat"><small>Teams still in</small><b class="num">{{ state.active_after(state.last_round)|length }} / {{ state.teams|length }}</b></div>
+</div>
+
+<form class="panel" method="post" action="/admin/settings">
+  <h2>Settings</h2>
+  <div class="grid2">
+    <div class="field">
+      <label for="deadline">Pick deadline (Dutch time)</label>
+      <input type="datetime-local" id="deadline" name="deadline" value="{{ settings.deadline }}" required>
+      <span class="hint">Now: {{ deadline_label }}</span>
+    </div>
+    <div>
+      <label class="check"><input type="checkbox" name="match_mode" {% if settings.match_mode == '1' %}checked{% endif %}>
+        <span><b>Calculate points from match results</b><br><span class="hint">Off until the scoring rules are confirmed. Pasting standings always works.</span></span></label>
+      <div class="subset">
+        <label class="check"><input type="checkbox" name="et_goals" {% if settings.et_goals == '1' %}checked{% endif %}><span>Extra-time goals count for +501 / −500 <span class="tag">check rules</span></span></label>
+        <label class="check"><input type="checkbox" name="pen_goals" {% if settings.pen_goals == '1' %}checked{% endif %}><span>Penalty shootout goals count <span class="tag">check rules</span></span></label>
+      </div>
+    </div>
+  </div>
+  <button class="btn primary" type="submit">Save settings</button>
+</form>
+
+<div class="panel" id="players">
+  <h2>Players ({{ state.entries|length }})</h2>
+  {% if state.entries %}
+  <div class="tablebox" style="border:0"><table class="plain">
+    <thead><tr><th>Name</th><th>Six</th><th>Joined</th><th></th></tr></thead>
+    <tbody>{% for e in state.entries %}
+      <tr><td><b>{{ e.name }}</b></td>
+        <td><div class="crests">{% for t in state.picks(e) %}<span title="{{ state.by_id[t].name }}">{{ crest(state.by_id[t]) }}</span>{% endfor %}</div></td>
+        <td class="num" style="color:var(--muted);white-space:nowrap">{{ (e.created_at or '')[:16] }} UTC</td>
+        <td><form method="post" action="/admin/entries/{{ e.id }}/delete" onsubmit="return confirm('Remove {{ e.name|e }} and free their six?')"><button class="btn sm danger">Remove</button></form></td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="hint">Nobody has joined yet. Share the link to <a href="/pick">/pick</a>.</p>{% endif %}
+  <p class="hint" style="margin-top:10px">Picks are final for players. If someone made a mistake, remove them here and let them pick again (or add them yourself on the pick page; it stays open for you after the deadline).</p>
+</div>
+
+<div class="panel" id="teams">
+  <h2>Teams &amp; logos</h2>
+  <p class="hint">Upload a logo (PNG, JPG, WebP or GIF, max 2 MB) to replace the temporary crest. You can fix a team name here too.</p>
+  <div class="tablebox" style="border:0"><table class="plain">
+    <tbody>{% for t in state.teams %}
+      <tr><td style="width:40px"><span class="poule-tag">{{ t.grp }}</span></td>
+        <td style="width:50px">{{ crest(t, False, 'md') }}</td>
+        <td><form class="teamform" method="post" action="/admin/teams/{{ t.id }}" enctype="multipart/form-data">
+          <input type="text" name="name" value="{{ t.name }}" aria-label="Team name">
+          <input type="file" name="logo" accept="image/png,image/jpeg,image/webp,image/gif" aria-label="Logo for {{ t.name }}">
+          {% if t.logo_id %}<label class="check" style="margin:0"><input type="checkbox" name="remove_logo"><span>Remove logo</span></label>{% endif %}
+          <button class="btn sm">Save</button>
+        </form></td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+</div>
+
+<div class="panel">
+  <h2>Rounds</h2>
+  {% if state.round_list %}
+  <p>Entered: {% for r in state.round_list %}<a href="/?round={{ r }}">round {{ r }}</a>{{ ', ' if not loop.last }}{% endfor %}.</p>
+  <form method="post" action="/admin/rounds/{{ state.last_round }}/delete" onsubmit="return confirm('Remove round {{ state.last_round }} and its knock-outs?')">
+    <button class="btn sm danger">Remove round {{ state.last_round }}</button> <span class="hint">Use this if you entered a round by mistake.</span>
+  </form>
+  {% else %}<p class="hint">No rounds yet. Your first paste can be the current standings (for example "Teams na ronde 13"); later rounds build on it.</p>{% endif %}
+</div>
+{% endblock %}

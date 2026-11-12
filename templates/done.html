@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}You're in · Road to the Final{% endblock %}
+{% block content %}
+<h2>You're in, {{ entry.name }}!</h2>
+<p class="lead">Your six teams are locked in. Nobody else can pick this combination. The leaderboard opens after the deadline ({{ deadline_label }}).</p>
+<div class="done-six">
+  {% for g in GROUPS %}{% set t = state.by_id[entry['g' ~ g]] %}
+  <div><span class="poule-tag">{{ g }}</span>{{ crest(t, False, 'md') }}<b>{{ t.name }}</b></div>
+  {% endfor %}
+</div>
+<p class="hint">Tip: take a screenshot of this page so you remember your teams.</p>
+<a class="btn primary" href="/" style="text-decoration:none">Go to the leaderboard</a>
+{% endblock %}

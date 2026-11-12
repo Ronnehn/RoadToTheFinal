@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Make your pick · Road to the Final{% endblock %}
+{% block content %}
+{% if not picks_open and not is_admin %}
+  <h2>Picks are closed</h2>
+  <p class="lead">The deadline was {{ deadline_label }}. Follow the game on the <a href="/">leaderboard</a>.</p>
+{% else %}
+  <h2>Make your pick</h2>
+  <p class="lead">Choose one team from each of the six groups. <b>Your picks are final once you submit.</b> Every player needs a different set of six. If yours is already taken, you'll see which teams you can swap in to make it unique.</p>
+  {% if not picks_open and is_admin %}<div class="notice">Picks are closed for players. As organiser you can still add a player.</div>{% endif %}
+  {% if error %}<div class="err" role="alert">{{ error }}</div>{% endif %}
+
+  <form method="post" action="/pick" id="pickForm">
+    <div class="poules">
+      {% for g in GROUPS %}
+      <fieldset class="poule" data-g="{{ g }}" style="margin:0">
+        <legend class="sr">Group {{ g }}</legend>
+        <h3>Group {{ g }} <small class="gstate">pick 1</small></h3>
+        {% for t in state.teams if t.grp == g %}{% set gone = state.is_out(t.id, state.last_round) %}
+        <label class="opt {{ 'blocked' if gone }}" data-t="{{ t.id }}">
+          <input type="radio" name="g{{ g }}" value="{{ t.id }}" class="sr" {% if form.get('g' ~ g) == t.id %}checked{% endif %} {% if gone %}disabled{% endif %}>
+          {{ crest(t, gone, 'md') }}
+          <span style="min-width:0"><b>{{ t.name }}</b><span class="num">{% if gone %}Out of the cup{% elif state.last_round %}{{ nl(state.rounds[state.last_round].get(t.id, 0)) }} avg{% else %}Group {{ g }}{% endif %}</span></span>
+          <span class="flag">{% if gone %}out{% endif %}</span>
+        </label>
+        {% endfor %}
+      </fieldset>
+      {% endfor %}
+    </div>
+
+    <div class="pickbar">
+      <label for="pname" class="sr">Your name</label>
+      <input id="pname" name="name" placeholder="Your name (or Hattrick team)" autocomplete="name" maxlength="40" value="{{ form.get('name', '') }}" required>
+      <button type="button" class="btn" id="clearPick">Clear</button>
+      <button type="submit" class="btn primary" id="submitPick" disabled>Submit my six</button>
+      <div class="status info" id="status">0 of 6 picked.</div>
+      <div class="swaps" id="swaps" hidden></div>
+    </div>
+  </form>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const form = document.getElementById('pickForm');
+if (form) {
+  const GROUPS = {{ GROUPS|tojson }};
+  const initialSwaps = {{ (avail.swaps if avail else {})|tojson }};
+  const statusEl = document.getElementById('status'), swapsEl = document.getElementById('swaps'), submit = document.getElementById('submitPick');
+  let seq = 0;
+
+  const picks = () => Object.fromEntries(GROUPS.map(g => [g, (form.querySelector(`input[name="g${g}"]:checked`) || {}).value || null]));
+
+  function paint(data) {
+    const p = picks(), missing = GROUPS.filter(g => !p[g]);
+    form.querySelectorAll('.opt').forEach(o => {
+      const inp = o.querySelector('input');
+      o.setAttribute('aria-pressed', inp.checked);
+      const blocked = data && data.blocked.includes(+o.dataset.t) && !inp.disabled;
+      o.classList.toggle('blocked', inp.disabled || blocked);
+      if (!inp.disabled) o.querySelector('.flag').textContent = blocked ? 'taken' : '';
+    });
+    form.querySelectorAll('.poule').forEach(f => {
+      const done = !!p[f.dataset.g];
+      f.classList.toggle('done', done);
+      f.querySelector('.gstate').textContent = done ? '✓ picked' : 'pick 1';
+    });
+    swapsEl.hidden = true; swapsEl.innerHTML = '';
+    if (missing.length) {
+      statusEl.className = 'status info';
+      statusEl.textContent = `${6 - missing.length} of 6 picked. Still open: group ${missing.join(', ')}.` + (missing.length === 1 && data && data.blocked.length ? ' Teams marked “taken” would copy someone else\'s six.' : '');
+      submit.disabled = true;
+    } else if (data && data.free === false) {
+      statusEl.className = 'status bad';
+      statusEl.textContent = '✕ Someone already has exactly these six teams. Swap one team. Still available:';
+      const s = data.swaps;
+      swapsEl.innerHTML = Object.keys(s).map(g => `<div class="sw"><b>Group ${g}:</b> ${s[g].map(t => `<button type="button" data-g="${g}" data-t="${t.id}">${t.name.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}</button>`).join('')}</div>`).join('');
+      swapsEl.hidden = false;
+      submit.disabled = true;
+    } else if (data && data.free) {
+      statusEl.className = 'status ok';
+      statusEl.textContent = '✓ Nobody has this combination yet. Submit it to lock it in. You can’t change it afterwards.';
+      submit.disabled = false;
+    } else {
+      statusEl.className = 'status info'; statusEl.textContent = 'Checking…'; submit.disabled = true;
+    }
+  }
+
+  async function check() {
+    const p = picks(), n = GROUPS.filter(g => p[g]).length, my = ++seq;
+    if (n < 5) { paint(null); return; }
+    paint(null);
+    try {
+      const r = await fetch('/api/check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ picks: p }) });
+      const data = await r.json();
+      if (my === seq) paint(data);
+    } catch (e) {
+      statusEl.className = 'status bad'; statusEl.textContent = 'Could not check availability. Check your connection and try again.';
+    }
+  }
+
+  form.addEventListener('change', e => { if (e.target.type === 'radio') check(); });
+  swapsEl.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    const inp = form.querySelector(`input[name="g${b.dataset.g}"][value="${b.dataset.t}"]`);
+    if (inp) { inp.checked = true; check(); }
+  });
+  document.getElementById('clearPick').addEventListener('click', () => { form.querySelectorAll('input[type=radio]').forEach(i => i.checked = false); check(); });
+  form.addEventListener('submit', e => { if (submit.disabled) e.preventDefault(); else submit.disabled = true; });
+  check();
+}
+</script>
+{% endblock %}

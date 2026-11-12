@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Enter results · Road to the Final{% endblock %}
+{% block content %}
+<h2>Enter this week's results</h2>
+<p class="lead">{% if mode == 'paste' %}Paste the cup standings exactly as you get them (positie / team / punten). The site reads every team's average, then you tick who got knocked out.{% else %}Enter each team's cup match for round {{ next_round }}. The site works out the points with the table, updates the averages and knocks out every team that lost.{% endif %}</p>
+
+<div class="seg" role="tablist">
+  <a role="tab" class="segbtn" aria-selected="{{ 'true' if mode == 'paste' else 'false' }}" href="/admin/results?mode=paste">Paste standings</a>
+  {% if settings.match_mode == '1' %}
+  <a role="tab" class="segbtn" aria-selected="{{ 'true' if mode == 'matches' else 'false' }}" href="/admin/results?mode=matches">Enter matches</a>
+  {% else %}
+  <span class="segbtn" aria-disabled="true" title="Turn on under Organiser → Settings">Enter matches (off)</span>
+  {% endif %}
+</div>
+
+{% if mode == 'paste' %}
+<form method="post" action="/admin/results/read">
+  <textarea name="text" spellcheck="false" aria-label="Paste results" placeholder="Teams na ronde 14:&#10;&#10;positie	team	punten&#10;1	# The Fighting Hyenas	50504,14&#10;…">{{ text }}</textarea>
+  <div class="btnrow"><button class="btn primary">Read results</button></div>
+</form>
+
+{% if parsed %}
+<form class="preview" method="post" action="/admin/results/publish">
+  <input type="hidden" name="text" value="{{ text }}">
+  <p><b>Round {{ parsed.round }}</b>: <span class="{{ 'warn' if parsed.missing else 'okc' }}">{{ parsed.active|length - parsed.missing|length }} of {{ parsed.active|length }} teams still in the cup recognised</span>.
+  {% if parsed.unknown %}<br><span class="warn">Not recognised:</span> {{ parsed.unknown|join(', ') }} <span class="hint">(fine if these aren't in the game; otherwise fix the team name under Organiser → Teams)</span>{% endif %}
+  {% for p in parsed.problems %}<br><span class="warn">{{ p }}</span>{% endfor %}
+  {% if parsed.round in state.rounds %}<br><span class="warn">Round {{ parsed.round }} already exists and will be replaced.</span>{% endif %}</p>
+  {% if not parsed.problems %}
+  <h3 class="subhead">Who got knocked out this round?</h3>
+  <p class="hint">Tick every team that lost its cup match. Players who picked it will see they have one team less from now on.</p>
+  <div class="kolist">{% for t in parsed.active %}
+    <div class="korow">
+      <label class="tm" for="ko_{{ t.id }}"><input type="checkbox" id="ko_{{ t.id }}" name="ko_{{ t.id }}">{{ crest(t) }}<span>{{ t.name }}</span></label>
+      <select name="kohow_{{ t.id }}" aria-label="How {{ t.name }} lost"><option value="regular">Lost in regular time</option><option value="extra">Lost after extra time</option><option value="penalties">Lost on penalties</option></select>
+      <input name="koopp_{{ t.id }}" placeholder="Lost to (optional)" aria-label="Opponent of {{ t.name }}">
+    </div>{% endfor %}
+  </div>
+  <button class="btn primary">Publish round {{ parsed.round }}</button>
+  {% endif %}
+</form>
+{% endif %}
+
+{% else %}
+{% set prev = next_round - 1 if (next_round - 1) in state.rounds else None %}
+{% set active = state.active_after(prev) if prev else state.teams %}
+{% if next_round not in BASE %}
+<p class="warn">The points table only goes up to round 14, so there is nothing more to enter.</p>
+{% else %}
+<p class="hint">Enter the final score (after extra time if it went that far). Points for round {{ next_round }}: win {{ nl(BASE[next_round], 0) }}, goals +501 for and −500 against. {{ 'Extra-time goals count.' if settings.et_goals == '1' else "Extra-time goals don't count: fill in how many were scored in extra time." }} {{ 'Shootout goals count.' if settings.pen_goals == '1' else "Shootout goals don't count." }}</p>
+<form method="post" action="/admin/results/matches" id="matchForm"
+      data-round="{{ next_round }}" data-base="{{ BASE[next_round] }}" data-et="{{ settings.et_goals }}" data-pen="{{ settings.pen_goals }}">
+  <datalist id="teamNames">{% for t in state.teams %}<option value="{{ t.name }}">{% endfor %}</datalist>
+  <div class="mlist">
+    {% for t in active %}{% set r = (rows or {}).get(t.id, {}) %}
+    <div class="mrow" data-id="{{ t.id }}" data-avg="{{ state.rounds[prev][t.id] if prev else 0 }}" data-played="{{ state.played[prev][t.id] if prev else 0 }}" data-name="{{ t.name }}">
+      <div class="tm">{{ crest(t) }}<b>{{ t.name }}</b></div>
+      <div class="mfields">
+        <input class="score" type="number" min="0" name="gf_{{ t.id }}" value="{{ r.gf if r.gf is not none else '' }}" aria-label="Goals {{ t.name }}">
+        <span>–</span>
+        <input class="score" type="number" min="0" name="ga_{{ t.id }}" value="{{ r.ga if r.ga is not none else '' }}" aria-label="Goals opponent">
+        <input class="opp" list="teamNames" name="opp_{{ t.id }}" value="{{ r.opp or '' }}" placeholder="vs opponent" aria-label="Opponent of {{ t.name }}">
+        <select name="dec_{{ t.id }}" aria-label="How it was decided">
+          <option value="regular" {{ 'selected' if r.dec == 'regular' }}>Regular time</option>
+          <option value="extra" {{ 'selected' if r.dec == 'extra' }}>After extra time</option>
+          <option value="penalties" {{ 'selected' if r.dec == 'penalties' }}>Penalties</option>
+        </select>
+        <label class="mini et" {{ 'hidden' if settings.et_goals == '1' or r.dec not in ('extra', 'penalties') }}>Extra-time goals <input type="number" min="0" name="etf_{{ t.id }}" value="{{ r.etf if r.etf is not none else '' }}" aria-label="Extra-time goals for">–<input type="number" min="0" name="eta_{{ t.id }}" value="{{ r.eta if r.eta is not none else '' }}" aria-label="Extra-time goals against"></label>
+        <label class="mini pen" {{ 'hidden' if r.dec != 'penalties' }}>Shootout <input type="number" min="0" name="pf_{{ t.id }}" value="{{ r.pf if r.pf is not none else '' }}" aria-label="Shootout goals for">–<input type="number" min="0" name="pa_{{ t.id }}" value="{{ r.pa if r.pa is not none else '' }}" aria-label="Shootout goals against"></label>
+      </div>
+      <div class="mprev"></div>
+      {% if errors.get(t.id) %}<div class="err-line">{{ errors[t.id] }}</div>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  <div class="btnrow"><button class="btn primary" id="publishMatches">Publish round {{ next_round }}</button></div>
+</form>
+{% endif %}
+{% endif %}
+
+<div class="rules">
+  <div class="rule"><b>Scoring</b>Each match earns points by round and result plus 501 per goal scored and −500 per goal conceded. A team's points are its average per match. A player's score is their six averages ÷ 6.</div>
+  <div class="rule"><b>Knocked out</b>A team that loses, in regular time, after extra time or on penalties, is out. It keeps its average but earns nothing more.</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/matches.js" defer></script>
+{% endblock %}

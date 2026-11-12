@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block title %}Road to the Final{% endblock %}</title>
+  <meta name="description" content="Kies zes teams, één per groep, en volg ze op weg naar de bekerfinale.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><path d='M14 6h20v8a10 10 0 0 1-20 0z' fill='%23f26a1b'/><path d='M21 24h6v6h-6zM15 33h18l2 6H13z' fill='%230f1d36'/></svg>">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <a class="mark" href="/" style="text-decoration:none;color:inherit">
+        <svg viewBox="0 0 48 48" aria-hidden="true">
+          <path d="M14 6h20v8a10 10 0 0 1-20 0z" fill="var(--accent)"/>
+          <path d="M14 9H8a6 6 0 0 0 6 7M34 9h6a6 6 0 0 1-6 7" fill="none" stroke="var(--accent)" stroke-width="2.5"/>
+          <path d="M21 24h6v6h-6z" fill="var(--ink)"/>
+          <path d="M15 33h18l2 6H13z" fill="var(--ink)"/>
+          <path d="M6 44h36" stroke="var(--muted)" stroke-width="2" stroke-dasharray="4 3"/>
+        </svg>
+        <div>
+          <h1>Road to the <span>Final</span></h1>
+          <p>Pick one team per group. Your score is your six teams' average points.</p>
+        </div>
+      </a>
+    </div>
+    {% block chip %}
+    <div class="deadline-chip {{ '' if picks_open else 'closed' }}">
+      {% if picks_open %}🕗 Picks close <b>{{ deadline_label }}</b>{% else %}Picks closed {{ deadline_label }}{% endif %}
+    </div>
+    {% endblock %}
+  </header>
+
+  <nav class="tabs" aria-label="Sections">
+    <a href="/" {% if active_tab == 'leaderboard' %}aria-current="page"{% endif %}>Leaderboard</a>
+    <a href="/teams" {% if active_tab == 'teams' %}aria-current="page"{% endif %}>Teams</a>
+    <a href="/pick" {% if active_tab == 'pick' %}aria-current="page"{% endif %}>Make your pick</a>
+    {% if is_admin %}
+    <a href="/admin" {% if active_tab == 'admin' %}aria-current="page"{% endif %}>Organiser</a>
+    <a href="/admin/results" {% if active_tab == 'results' %}aria-current="page"{% endif %}>Enter results</a>
+    <a href="/admin/logout" class="admin-link">Log out</a>
+    {% endif %}
+  </nav>
+
+  <main>{% block content %}{% endblock %}</main>
+
+  <footer style="margin-top:40px;color:var(--muted);font-size:.85rem;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">
+    <span>Road to the Final · cup prediction game</span>
+    {% if not is_admin %}<a href="/admin/login" style="color:var(--muted)">Organiser</a>{% endif %}
+  </footer>
+</div>
+{% block scripts %}{% endblock %}
+</body>
+</html>
