@@ -49,6 +49,9 @@
           <td class="r num"><b>{{ nl(state.rounds[rnd].get(t.id, 0)) }}</b></td>
         </tr>
         {% endfor %}
+        {% set ns = namespace(total=0) %}{% for t in picks %}{% set ns.total = ns.total + state.rounds[rnd].get(t, 0) %}{% endfor %}
+        <tr class="sumrow"><td></td><td><b>Score</b> = sum of the 6 averages ÷ 6</td>
+          <td class="r num">{{ nl(ns.total) }} ÷ 6</td><td class="r num"><b>= {{ nl(ns.total / 6) }}</b></td></tr>
       </table></div>
     </details>
     {% endfor %}

@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% block title %}Test run · Road to the Final{% endblock %}
 {% block chip %}
-{% if sim and state.round_list %}
+{% if state.round_list %}
 <form class="round-chip" method="get" action="/admin/simulate">
-  <input type="hidden" name="go" value="1"><input type="hidden" name="start" value="{{ start }}">
+  <input type="hidden" name="start" value="{{ start }}">
   <input type="hidden" name="rounds" value="{{ n }}"><input type="hidden" name="seed" value="{{ seed }}">
   <label for="roundSel">Test standings after</label>
   <select id="roundSel" name="round" onchange="this.form.submit()">
@@ -19,7 +19,6 @@
 </div>
 
 <form class="panel" method="get" action="/admin/simulate">
-  <input type="hidden" name="go" value="1">
   <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
     <div class="field"><label for="start">Start at round</label><input type="number" id="start" name="start" min="1" max="14" value="{{ start }}">
       <span class="hint">{% if real_last %}Real results go up to round {{ real_last }}.{% else %}No real results yet.{% endif %}</span></div>
@@ -28,27 +27,34 @@
   </div>
   <div class="btnrow" style="margin-top:0">
     <button class="btn primary">Run test</button>
-    <a class="btn" href="/admin/simulate?go=1&start={{ start }}&rounds={{ n }}&seed={{ (seed * 7919 + 13) % 1000000 }}" style="text-decoration:none">New random run</a>
+    <a class="btn" href="/admin/simulate?start={{ start }}&rounds={{ n }}&seed={{ (seed * 7919 + 13) % 1000000 }}" style="text-decoration:none">New random run</a>
   </div>
 </form>
 
 {% if sim %}
   {% for note in sim.notes %}<p class="warn">{{ note }}</p>{% endfor %}
-  {% if not state.entries %}<p class="warn">There are no players yet. Import or add players first to see a leaderboard.</p>{% endif %}
+  {% if state.demo_players %}<div class="notice">No players have joined yet, so this test uses 12 random test players. Once players are in, the test run uses their real picks.</div>{% endif %}
   {% if rnd %}
     {% include "_board.html" %}
-    {% if sim.log.get(rnd) %}
-    <h2 style="margin-top:28px">Random results in round {{ rnd }}</h2>
+    {% set played_now = {} %}{% for m in sim.log.get(rnd, []) %}{% set _ = played_now.update({m.team.id: m}) %}{% endfor %}
+    <h2 style="margin-top:28px">Calculation check: round {{ rnd }}</h2>
+    <p class="lead">Per team: this round's match (table value for round {{ rnd }} + 501 per goal scored − 500 per goal conceded), the running total, and the average = total ÷ matches played. Teams that are out keep their total and average.</p>
     <div class="tablebox"><table class="teams">
-      <thead><tr><th>Team</th><th>Result</th><th>Opponent</th><th class="r">Points</th></tr></thead>
-      <tbody>{% for m in sim.log[rnd] %}
-        <tr class="{{ 'is-out' if m.lost }}"><td><div class="tm">{{ crest(m.team, m.lost) }}<span>{{ m.team.name }}</span></div></td>
-          <td class="num">{{ m.gf }}-{{ m.ga }}{% if m.dec == 'extra' %} nv{% elif m.dec == 'penalties' %} ns {{ m.pf }}-{{ m.pa }}{% endif %}
-            {% if m.lost %}<span class="badge out">out</span>{% endif %}</td>
-          <td>{{ m.opp }}</td><td class="r num">{{ nl(m.points, 0) }}</td></tr>
+      <thead><tr><th>Team</th><th>Result round {{ rnd }}</th><th class="r">Match points</th><th class="r">Total points</th><th class="r">Matches</th><th class="r">Average</th></tr></thead>
+      <tbody>{% for t in state.team_table(rnd) %}{% set m = played_now.get(t.id) %}{% set o = state.outs.get(t.id) if state.is_out(t.id, rnd) else None %}
+        {% set tot = state.totals.get(rnd, {}).get(t.id, 0) %}{% set pl = state.played.get(rnd, {}).get(t.id, 0) %}
+        <tr class="{{ 'is-out' if o and not m }}">
+          <td><div class="tm">{{ crest(t, o is not none) }}<span>{{ t.name }}</span></div></td>
+          <td class="num">{% if m %}{{ m.gf }}-{{ m.ga }} vs {{ m.opp }}{% if m.dec == 'extra' %} (nv){% elif m.dec == 'penalties' %} (ns {{ m.pf }}-{{ m.pa }}){% endif %}
+            <br><span class="{{ 'warn' if m.lost else 'okc' }}" style="font-size:.8rem">{{ RESULT_LABEL[('win' if not m.lost else 'loss') ~ ('ET' if m.dec == 'extra' else ('Pen' if m.dec == 'penalties' else ''))] }}{{ ': out of the cup' if m.lost }}</span>
+            {% elif o %}<span class="hint">out since round {{ o.round }}</span>{% else %}—{% endif %}</td>
+          <td class="r num">{% if m %}{{ nl(m.points, 0) }}{% else %}—{% endif %}</td>
+          <td class="r num">{{ nl(tot, 0) }}</td>
+          <td class="r num">{{ pl }}</td>
+          <td class="r num"><b>{{ nl(t.pts or 0) }}</b>{% if pl %}<br><span class="hint" style="font-size:.75rem">{{ nl(tot, 0) }} ÷ {{ pl }}</span>{% endif %}</td>
+        </tr>
       {% endfor %}</tbody>
     </table></div>
-    {% endif %}
   {% endif %}
 {% endif %}
 {% endblock %}

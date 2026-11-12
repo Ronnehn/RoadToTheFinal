@@ -95,11 +95,9 @@ def simulate(request: Request):
     start = num("start", real_last + 1 if real_last else 1, 1, 14)
     n = num("rounds", 5, 1, 14)
     seed = num("seed", 2026, 0, 10**9)
-    sim = None
-    if q.get("go"):
-        sim = game.simulate(s, start, n, seed, game.settings())
-    rnd = pick_round(s, request) if sim else None
-    ctx = board_context(s, rnd, False) if sim else dict(state=s, rnd=None, rows=[], hide=False)
+    sim = game.simulate(s, start, n, seed, game.settings())
+    rnd = pick_round(s, request)
+    ctx = board_context(s, rnd, False)
     return page(request, "admin/simulate.html", active_tab="simulate", start=start, n=n, seed=seed, sim=sim,
                 real_last=real_last, **ctx)
 
@@ -193,6 +191,32 @@ async def api_check(request: Request):
             picks[g] = tid
     e = editing_entry(request)
     return JSONResponse(game.availability(s, picks, e["combo_key"] if e else None))
+
+
+@app.post("/api/random")
+async def api_random(request: Request):
+    """A random free six: keeps the groups the player already picked and fills the rest."""
+    import random
+    data = await request.json()
+    s = State()
+    keep = {}
+    for g in GROUPS:
+        try:
+            tid = int((data.get("picks") or {}).get(g) or 0)
+        except (TypeError, ValueError):
+            tid = 0
+        if tid and s.by_id.get(tid, {}).get("grp") == g and not s.is_out(tid, s.last_round):
+            keep[g] = tid
+    if len(keep) == 6:
+        keep = {}   # everything picked already: start over with a fully random six
+    e = editing_entry(request)
+    taken = game.taken_keys() - ({e["combo_key"]} if e else set())
+    options = {g: [t["id"] for t in s.teams if t["grp"] == g and not s.is_out(t["id"], s.last_round)] for g in GROUPS}
+    for _ in range(500):
+        picks = {g: keep.get(g) or random.choice(options[g]) for g in GROUPS}
+        if game.combo_key([picks[g] for g in GROUPS]) not in taken:
+            return JSONResponse({"picks": picks})
+    return JSONResponse({"error": "No free combination left with the teams you kept. Clear a group and try again."}, status_code=409)
 
 
 _recent_posts: dict[str, list[float]] = {}
@@ -350,7 +374,6 @@ async def admin_settings(request: Request):
         game.set_setting("deadline", dl[:16])
     except ValueError:
         return RedirectResponse("/admin?msg=That+deadline+is+not+a+valid+date.", 303)
-    game.set_setting("match_mode", "1" if form.get("match_mode") else "0")
     game.set_setting("et_goals", "1" if form.get("et_goals") else "0")
     game.set_setting("pen_goals", "1" if form.get("pen_goals") else "0")
     return RedirectResponse("/admin?msg=Settings+saved.", 303)
@@ -450,9 +473,9 @@ def results_form(request: Request):
     require_admin(request)
     s = State()
     st = game.settings()
-    mode = request.query_params.get("mode", "paste")
-    if mode == "matches" and st.get("match_mode") != "1":
-        mode = "paste"
+    mode = request.query_params.get("mode", "matches")
+    if mode not in ("matches", "paste"):
+        mode = "matches"
     return page(request, "admin/results.html", state=s, settings=st, mode=mode, parsed=None, text="",
                 errors={}, rows=None, next_round=s.last_round + 1 if s.last_round else 1)
 
@@ -522,8 +545,6 @@ async def results_matches(request: Request):
     form = await request.form()
     s = State()
     st = game.settings()
-    if st.get("match_mode") != "1":
-        return RedirectResponse("/admin/results", 303)
     rnd = s.last_round + 1 if s.last_round else 1
     prev = rnd - 1 if (rnd - 1) in s.rounds else None
     active = s.active_after(prev) if prev else s.teams

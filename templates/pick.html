@@ -39,6 +39,7 @@
       <label for="ppin" class="sr">PIN code</label>
       <input id="ppin" name="pin" inputmode="numeric" pattern="[0-9]{4,8}" maxlength="8" autocomplete="off" style="flex:0 1 150px"
              placeholder="{{ 'New PIN (optional)' if editing or is_admin else 'Choose a PIN (4–8 digits)' }}" {% if not editing and not is_admin %}required{% endif %}>
+      <button type="button" class="btn" id="randomPick" title="Fill the open groups with random teams that make a free six">🎲 Random</button>
       <button type="button" class="btn" id="clearPick">Clear</button>
       <button type="submit" class="btn primary" id="submitPick" disabled>{{ 'Save my changes' if editing else 'Submit my six' }}</button>
       <div class="status info" id="status">0 of 6 picked.</div>
@@ -112,6 +113,15 @@ if (form) {
     const b = e.target.closest('button'); if (!b) return;
     const inp = form.querySelector(`input[name="g${b.dataset.g}"][value="${b.dataset.t}"]`);
     if (inp) { inp.checked = true; check(); }
+  });
+  document.getElementById('randomPick').addEventListener('click', async () => {
+    try {
+      const r = await fetch('/api/random', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ picks: picks() }) });
+      const data = await r.json();
+      if (data.error) { statusEl.className = 'status bad'; statusEl.textContent = data.error; return; }
+      for (const g of GROUPS) { const inp = form.querySelector(`input[name="g${g}"][value="${data.picks[g]}"]`); if (inp) inp.checked = true; }
+      check();
+    } catch (e) { statusEl.className = 'status bad'; statusEl.textContent = 'Could not pick random teams. Check your connection.'; }
   });
   document.getElementById('clearPick').addEventListener('click', () => { form.querySelectorAll('input[type=radio]').forEach(i => i.checked = false); check(); });
   form.addEventListener('submit', e => { if (submit.disabled) e.preventDefault(); else submit.disabled = true; });
