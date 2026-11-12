@@ -313,6 +313,7 @@ STATIC_LOGOS = {
     "Paniek Zaaiende Zigeuners": "paniek-zaaiende-zigeuners.png",
     "De Snelle Jelles": "de-snelle-jelles.png",
     "Lazio Roma": "lazio-roma.png",
+    "Revival": "revival.png",
 }
 
 
