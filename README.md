@@ -17,6 +17,8 @@ Render's disk is wiped on every deploy.
 - **Changing picks**: players choose a PIN (4–8 digits) when they join and can change their six under
   "Change my teams" until the deadline, as long as nobody else has that exact six.
 - **Organiser**: add late entries (also after the deadline) and edit or remove anyone's entry under Organiser → Players.
+  **Import from forum** reads a whole forum thread of picks (`user: Name` + six teams in any format), shows
+  guesses and clashes, and imports the ticked players in one go.
 - **Deadline**: Thursday 19 November 2026, 16:55 (Dutch time) by default; change it under Organiser → Settings.
   Until the deadline, players only see who has joined; everyone's teams and the leaderboard appear after it.
 - **Points per match** (row = cup round): win / win after extra time / win on penalties / loss on penalties /

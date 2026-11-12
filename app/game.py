@@ -460,3 +460,128 @@ def forum_tables(state, rnd):
         ko_lines.append(txt)
     knockouts = ("[b]Uitgeschakeld in ronde %d[/b]\n" % rnd + "\n".join(ko_lines)) if ko_lines else ""
     return players, teams, knockouts
+
+
+# ---- bulk import of entries from forum posts ----
+import difflib as _difflib
+
+_USER_LINE = re.compile(r"^\s*user\s*(?::\s*|\s+)(.+?)\s*$", re.I)
+_GROUP_ONLY = re.compile(r"^\s*groep\s*(\d)\s*[:.\-]?\s*$", re.I)
+_GROUP_PREFIX = re.compile(r"^\s*(?:groep\s*(\d)|(\d))\s*[:.\-)]?\s+(.+)$", re.I)
+
+
+def _clean_name(s):
+    s = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", s)   # [name](link) -> name
+    return s.strip().strip("*").strip()
+
+
+def _score(line_n, team):
+    tn = norm(team["name"])
+    if not line_n or not tn:
+        return 0.0
+    if line_n == tn:
+        return 1.0
+    if line_n in tn or tn in line_n:
+        return 0.95 if len(line_n) >= 3 else 0.6
+    words = [norm(w) for w in re.split(r"[\s\-]+", team["name"]) if len(norm(w)) >= 3 and norm(w) not in ("the", "fc", "de", "united")]
+    if any(w.startswith(line_n) or line_n.startswith(w) for w in words) and len(line_n) >= 3:
+        return 0.9
+    return _difflib.SequenceMatcher(None, line_n, tn).ratio()
+
+
+def match_team(state, text, group=None):
+    """Best team for a written name; prefers the given group. Returns (team, score, best_overall_team)."""
+    n = norm(text)
+    pool = [t for t in state.teams if not group or t["grp"] == group]
+    ranked = sorted(pool, key=lambda t: -_score(n, t))
+    overall = max(state.teams, key=lambda t: _score(n, t))
+    best = ranked[0] if ranked else None
+    return best, (_score(n, best) if best else 0), overall
+
+
+def parse_entries_text(text, state):
+    """Parse forum posts like 'user: Name' followed by six team lines in any common format."""
+    blocks, cur = [], None
+    for raw in text.splitlines():
+        m = _USER_LINE.match(raw)
+        if m:
+            cur = {"name": _clean_name(m.group(1)), "lines": []}
+            blocks.append(cur)
+        elif cur is not None and raw.strip():
+            cur["lines"].append(raw.strip())
+    results, seen = [], {}
+    for b in blocks:
+        cands, pending_group = [], None
+        for line in b["lines"]:
+            if re.fullmatch(r"[-=_ ]{3,}", line):
+                continue
+            line = re.sub(r"^[\-•*·]+\s+", "", line).strip()
+            if not line:
+                continue
+            g = _GROUP_ONLY.match(line)
+            if g:
+                pending_group = g.group(1)
+                continue
+            gp = _GROUP_PREFIX.match(line)
+            if gp and (gp.group(1) or gp.group(2)) in GROUPS:
+                cands.append({"text": gp.group(3).strip(" -:"), "group": gp.group(1) or gp.group(2)})
+            else:
+                cands.append({"text": line, "group": pending_group})
+            pending_group = None
+        # lines without a group label: use their position when there are exactly six team-like lines
+        unlabeled = [c for c in cands if not c["group"]]
+        team_like = [c for c in cands if match_team(state, c["text"])[1] >= 0.55]
+        if len(team_like) == 6 and all(not c["group"] for c in team_like):
+            for i, c in enumerate(team_like):
+                c["group"] = GROUPS[i]
+        picks, problems, ignored = {}, [], []
+        for c in cands:
+            team, sc, overall = match_team(state, c["text"], c["group"])
+            if sc < 0.55 or not team:
+                gteam, gsc, _ = match_team(state, c["text"])
+                if gsc >= 0.75 and gteam:
+                    team, sc = gteam, gsc
+                else:
+                    ignored.append(c["text"])
+                    continue
+            o_sc = _score(norm(c["text"]), overall)
+            if overall["id"] != team["id"] and o_sc > sc + 0.05:
+                team, sc = overall, o_sc
+            if team["grp"] in picks and picks[team["grp"]]["id"] != team["id"]:
+                problems.append(f"two teams from group {team['grp']}: {picks[team['grp']]['name']} and {team['name']}")
+                continue
+            picks[team["grp"]] = team
+            if sc < 0.9 and norm(c["text"]) != norm(team["name"]):
+                c["guess"] = True
+                problems.append(f"read “{c['text']}” as {team['name']}")
+        missing = [g for g in GROUPS if g not in picks]
+        if missing:
+            problems.append("no team for group " + ", ".join(missing))
+        key = combo_key([picks[g]["id"] for g in GROUPS]) if not missing else None
+        name_key = norm(b["name"])
+        if name_key in seen:
+            prev = seen[name_key]
+            if prev["key"] == key:
+                prev["listed_twice"] = True
+                continue
+            problems.append("this name appears twice with different teams; the first one is used")
+        r = {"name": b["name"], "picks": picks, "key": key, "problems": problems, "ignored": ignored,
+             "ok": not missing, "listed_twice": False, "guessed": [p for p in problems if p.startswith("read ")]}
+        if name_key not in seen:
+            seen[name_key] = r
+            results.append(r)
+    # same six for several players: first in the list keeps it
+    by_key = {}
+    existing = {e["combo_key"]: e["name"] for e in state.entries}
+    existing_names = {e["name_key"] for e in state.entries}
+    for r in results:
+        r["already_in"] = norm(r["name"]) in existing_names
+        if not r["key"]:
+            continue
+        if r["key"] in existing and not r["already_in"]:
+            r["clash"] = existing[r["key"]]
+        elif r["key"] in by_key:
+            r["clash"] = by_key[r["key"]]["name"]
+        else:
+            by_key[r["key"]] = r
+    return results
