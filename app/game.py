@@ -319,6 +319,10 @@ STATIC_LOGOS = {
     "Strike Back": "strike-back.png",
     "LipNeusVleesVet 3.0": "lipneusvleesvet-3-0.png",
     "De Ministers": "de-ministers.png",
+    # no own logo: plain shield with a green H
+    "Karbo Kings": "default-h.svg",
+    "Streetz Statue CF": "default-h.svg",
+    "FC Naosemi": "default-h.svg",
     "FC Kick and Rush": "fc-kick-and-rush.png",   # not in the groups yet; shows if a team is renamed to this
 }
 
