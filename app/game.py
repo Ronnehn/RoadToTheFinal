@@ -15,6 +15,23 @@ GROUPS = ["1", "2", "3", "4", "5", "6"]
 # ---- points table (win per round; other results are fixed steps below it) ----
 BASE = {1: 40000, 2: 40000, 3: 40000, 4: 40000, 5: 40000, 6: 44000, 7: 44000, 8: 44000, 9: 44000,
         10: 48000, 11: 52000, 12: 58000, 13: 68000, 14: 78000}
+MAX_ROUNDS = 20
+PLACEHOLDER_ROUNDS = range(15, 21)   # not in the official table yet: 78.000 until the real values are known
+
+
+def base_table(s=None):
+    """Win points per round 1-20. The organiser can change them under Settings (stored as JSON)."""
+    import json
+    table = {r: BASE.get(r, BASE[14]) for r in range(1, MAX_ROUNDS + 1)}
+    raw = (s if s is not None else settings()).get("points_table")
+    if raw:
+        try:
+            for k, v in json.loads(raw).items():
+                if 1 <= int(k) <= MAX_ROUNDS and int(v) > 0:
+                    table[int(k)] = int(v)
+        except (ValueError, TypeError):
+            pass
+    return table
 STEP = {"win": 0, "winET": -5000, "winPen": -10000, "lossPen": -20000, "lossET": -25000, "loss": -30000}
 GOAL_FOR, GOAL_AGAINST = 501, 500
 RESULT_LABEL = {"win": "Win", "winET": "Win after extra time", "winPen": "Win on penalties",
@@ -54,6 +71,11 @@ def now():
 
 def picks_open():
     return now() < deadline()
+
+
+def self_signup():
+    """Players may join and change their own six (with a PIN). Off this year: organisers add all entries."""
+    return settings().get("self_signup") == "1"
 
 
 DAYS = ["maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag", "zondag"]
@@ -114,6 +136,19 @@ class State:
         for i, r in enumerate(rows):
             r["rank"] = i + 1
         return rows
+
+    def leaders(self):
+        """Leader of every round: who was first, score, lead over number 2, teams still in."""
+        out = []
+        for r in self.round_list:
+            st = self.standings(r)
+            if not st:
+                continue
+            out.append({"round": r, "name": st[0]["name"], "score": st[0]["score"],
+                        "lead": st[0]["score"] - st[1]["score"] if len(st) > 1 else 0,
+                        "second": st[1]["name"] if len(st) > 1 else "",
+                        "still_in": len(self.active_after(r))})
+        return out
 
     def team_table(self, rnd):
         pts = self.rounds.get(rnd, {})
@@ -199,8 +234,9 @@ def compute_match(row, rnd, prev_avg, prev_played, s):
     gf, ga, dec = row.get("gf"), row.get("ga"), row.get("dec") or "regular"
     if gf is None or ga is None:
         raise ValueError("score missing")
-    if rnd not in BASE:
-        raise ValueError("the points table only goes up to round 14")
+    table = base_table(s)
+    if rnd not in table:
+        raise ValueError(f"the points table only goes up to round {MAX_ROUNDS}")
     if dec == "regular":
         if gf == ga:
             raise ValueError("a match decided in regular time can't end level")
@@ -226,7 +262,7 @@ def compute_match(row, rnd, prev_avg, prev_played, s):
     pen_count = dec == "penalties" and s.get("pen_goals") == "1"
     goals_for = gf - etf + ((row.get("pf") or 0) if pen_count else 0)
     goals_ag = ga - eta + ((row.get("pa") or 0) if pen_count else 0)
-    points = BASE[rnd] + STEP[key] + GOAL_FOR * goals_for - GOAL_AGAINST * goals_ag
+    points = table[rnd] + STEP[key] + GOAL_FOR * goals_for - GOAL_AGAINST * goals_ag
     played = (prev_played or 0) + 1
     avg = ((prev_avg or 0) * (prev_played or 0) + points) / played
     return {"key": key, "points": points, "avg": avg, "played": played, "lost": key.startswith("loss")}
@@ -648,8 +684,8 @@ def simulate(state, start, n, seed, s):
     # running total of match points per team, so the average can be checked as total ÷ matches
     state.totals = {r: {tid: state.rounds[r][tid] * state.played[r].get(tid, 0) for tid in state.rounds[r]} for r in state.rounds}
     for rnd in range(start, start + n):
-        if rnd not in BASE:
-            notes.append("The points table stops at round 14, so the test run stops there.")
+        if rnd not in base_table(s):
+            notes.append(f"The points table stops at round {MAX_ROUNDS}, so the test run stops there.")
             break
         prev = rnd - 1 if (rnd - 1) in state.rounds else None
         active = [t for t in state.teams if not (prev and state.is_out(t["id"], prev))]

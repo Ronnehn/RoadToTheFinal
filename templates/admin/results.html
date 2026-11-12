@@ -41,7 +41,7 @@
 {% set prev = next_round - 1 if (next_round - 1) in state.rounds else None %}
 {% set active = state.active_after(prev) if prev else state.teams %}
 {% if next_round not in BASE %}
-<p class="warn">The points table only goes up to round 14, so there is nothing more to enter.</p>
+<p class="warn">The points table only goes up to round 20, so there is nothing more to enter.</p>
 {% else %}
 <form method="post" action="/admin/results/paste-matches" class="panel">
   <h2 style="margin-top:0">Paste all results at once</h2>

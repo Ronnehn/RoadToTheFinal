@@ -28,6 +28,21 @@
       </div>
     </div>
   </div>
+  <label class="check" style="margin-bottom:12px"><input type="checkbox" name="self_signup" {% if settings.self_signup == '1' %}checked{% endif %}>
+    <span><b>Players can join and change their own six</b> (with a PIN, until the deadline)<br><span class="hint">Off this year: only organisers add and edit entries (Players → Import from forum / + Add a player / Edit).</span></span></label>
+  <details style="margin:6px 0 14px">
+    <summary style="cursor:pointer;font-weight:600">Points table (win points per round, rounds 1–20)</summary>
+    <p class="hint" style="margin-top:8px">Only the win value per round is needed; the other results are fixed steps below it (win after extra time −5.000, on penalties −10.000, loss on penalties −20.000, after extra time −25.000, loss −30.000). Goals: +501 for, −500 against. Rounds 15–20 are not in the official table yet and use 78.000 until you fill in the real values.</p>
+    <div class="tablebox" style="border:0"><table class="plain">
+      <thead><tr><th>Round</th><th>Win</th><th class="hide-sm">Win n.v.</th><th class="hide-sm">Win n.s.</th><th class="hide-sm">Loss n.s.</th><th class="hide-sm">Loss n.v.</th><th class="hide-sm">Loss</th></tr></thead>
+      <tbody>{% for r in range(1, 21) %}{% set w = BASE[r] %}
+        <tr><td class="num">{{ r }}{% if r >= 15 %} <span class="tag">check</span>{% endif %}</td>
+          <td><input type="text" inputmode="numeric" name="win_{{ r }}" value="{{ w }}" style="width:110px;border:1px solid var(--line);background:var(--panel-2);border-radius:8px;padding:5px 8px" aria-label="Win points round {{ r }}"></td>
+          <td class="num hide-sm">{{ nl(w - 5000, 0) }}</td><td class="num hide-sm">{{ nl(w - 10000, 0) }}</td><td class="num hide-sm">{{ nl(w - 20000, 0) }}</td>
+          <td class="num hide-sm">{{ nl(w - 25000, 0) }}</td><td class="num hide-sm">{{ nl(w - 30000, 0) }}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+  </details>
   <button class="btn primary" type="submit">Save settings</button>
 </form>
 
@@ -49,7 +64,7 @@
     {% endfor %}</tbody>
   </table></div>
   {% else %}<p class="hint">Nobody has joined yet. Share the link to <a href="/pick">/pick</a>.</p>{% endif %}
-  <p class="hint" style="margin-top:10px">Players change their own six with their PIN until the deadline. You can add late entries and edit anyone's six at any time; uniqueness is still checked.</p>
+  <p class="hint" style="margin-top:10px">{% if settings.self_signup == '1' %}Players change their own six with their PIN until the deadline. {% endif %}You can add late entries and edit anyone's six at any time; uniqueness is still checked.</p>
 </div>
 
 <div class="panel" id="teams">

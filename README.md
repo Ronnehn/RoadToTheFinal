@@ -15,8 +15,8 @@ Render's disk is wiped on every deploy.
 
 - **Picks**: one team per group. If a six is already taken, the page refuses it and shows, per group, which teams
   the player can swap in to make it unique. Names must be unique too.
-- **Changing picks**: players choose a PIN (4–8 digits) when they join and can change their six under
-  "Change my teams" until the deadline, as long as nobody else has that exact six.
+- **Who enters picks**: this year only the organisers add and edit entries (Import from forum, + Add a player,
+  Edit). Setting "Players can join and change their own six" turns on self-signup with a PIN for a later season.
 - **Organiser**: add late entries (also after the deadline) and edit or remove anyone's entry under Organiser → Players.
   **Import from forum** reads a whole forum thread of picks (`user: Name` + six teams in any format), shows
   guesses and clashes, and imports the ticked players in one go.
@@ -24,7 +24,8 @@ Render's disk is wiped on every deploy.
   Until the deadline, players only see who has joined; everyone's teams and the leaderboard appear after it.
 - **Points per match** (row = cup round): win / win after extra time / win on penalties / loss on penalties /
   loss after extra time / loss, plus 501 per goal scored and −500 per goal conceded. Round 1–5 start at 40.000,
-  round 6–9 at 44.000, then 48.000, 52.000, 58.000, 68.000 and 78.000 for round 14.
+  round 6–9 at 44.000, then 48.000, 52.000, 58.000, 68.000 and 78.000 for round 14. Up to 20 rounds:
+  rounds 15–20 use 78.000 until the real values are filled in under Organiser → Settings → Points table.
 - **Team score** = total points ÷ matches played. **Player score** = sum of the six team averages ÷ 6.
 - **Knocked out**: a team that loses (regular time, extra time or penalties) is out. It keeps its average but
   earns nothing more. The leaderboard says who went out, how, and how many players lost a team.

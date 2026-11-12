@@ -1,0 +1,19 @@
+{% for title, text, id in [('Player standings', forum_players, 'fPlayers'), ('Team standings', forum_teams, 'fTeams'), ('Knocked out this round', forum_kos, 'fKos')] %}
+{% if text %}
+<div class="panel">
+  <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
+    <h2 style="margin:0">{{ title }}</h2>
+    <button type="button" class="btn primary sm" data-copy="{{ id }}">Copy</button>
+  </div>
+  <textarea id="{{ id }}" readonly style="min-height:{{ 140 if id == 'fKos' else 260 }}px;margin-top:10px">{{ text }}</textarea>
+</div>
+{% endif %}
+{% endfor %}
+<script>
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-copy]'); if (!b) return;
+  const ta = document.getElementById(b.dataset.copy);
+  try { await navigator.clipboard.writeText(ta.value); } catch { ta.select(); document.execCommand('copy'); }
+  const t = b.textContent; b.textContent = 'Copied'; setTimeout(() => b.textContent = t, 1500);
+});
+</script>

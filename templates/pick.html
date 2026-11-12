@@ -10,7 +10,7 @@
   <p class="lead">You can change your teams until {{ deadline_label }}, as long as nobody else has the exact same six. Your current teams are selected. <a href="/pick/new">Cancel</a></p>
   {% else %}
   <h2>Make your pick</h2>
-  <p class="lead">Choose one team from each of the six groups. Every player needs a different set of six. If yours is already taken, you'll see which teams you can swap in to make it unique. You can change your teams until the deadline with your PIN. Already joined? <a href="/pick/change">Change my teams</a></p>
+  <p class="lead">Choose one team from each of the six groups. Every player needs a different set of six. If it's already taken, you'll see which teams can be swapped in to make it unique.{% if self_signup %} You can change your teams until the deadline with your PIN. Already joined? <a href="/pick/change">Change my teams</a>{% endif %}</p>
   {% endif %}
   {% if is_admin %}<div class="notice">Organiser: {% if editing %}you're editing {{ editing.name }}'s entry.{% else %}you're adding a player{% if not picks_open %} after the deadline{% endif %}. The PIN is optional; without one only you can change the entry.{% endif %}</div>{% endif %}
   {% if error %}<div class="err" role="alert">{{ error }}</div>{% endif %}
