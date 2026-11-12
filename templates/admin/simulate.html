@@ -20,9 +20,9 @@
 
 <form class="panel" method="get" action="/admin/simulate">
   <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
-    <div class="field"><label for="start">Start at round</label><input type="number" id="start" name="start" min="1" max="14" value="{{ start }}">
+    <div class="field"><label for="start">Start at round</label><input type="number" id="start" name="start" min="1" max="20" value="{{ start }}">
       <span class="hint">{% if real_last %}Real results go up to round {{ real_last }}.{% else %}No real results yet.{% endif %}</span></div>
-    <div class="field"><label for="rounds">Number of rounds</label><input type="number" id="rounds" name="rounds" min="1" max="14" value="{{ n }}"></div>
+    <div class="field"><label for="rounds">Number of rounds</label><input type="number" id="rounds" name="rounds" min="1" max="20" value="{{ n }}"></div>
     <div class="field"><label for="seed">Seed</label><input type="number" id="seed" name="seed" min="0" value="{{ seed }}"></div>
   </div>
   <div class="btnrow" style="margin-top:0">
@@ -36,6 +36,7 @@
   {% if state.demo_players %}<div class="notice">No players have joined yet, so this test uses 12 random test players. Once players are in, the test run uses their real picks.</div>{% endif %}
   {% if rnd %}
     {% include "_board.html" %}
+    {% include "_leaders.html" %}
     {% set played_now = {} %}{% for m in sim.log.get(rnd, []) %}{% set _ = played_now.update({m.team.id: m}) %}{% endfor %}
     <h2 style="margin-top:28px">Calculation check: round {{ rnd }}</h2>
     <p class="lead">Per team: this round's match (table value for round {{ rnd }} + 501 per goal scored − 500 per goal conceded), the running total, and the average = total ÷ matches played. Teams that are out keep their total and average.</p>
@@ -55,6 +56,10 @@
         </tr>
       {% endfor %}</tbody>
     </table></div>
+
+    <h2 style="margin-top:28px">Hattrick forum markup: round {{ rnd }}</h2>
+    <p class="lead">This is what the Forum tables tab gives you for a real round. Copy a block and paste it into a forum post to see how it looks.</p>
+    {% include "_forumcopy.html" %}
   {% endif %}
 {% endif %}
 {% endblock %}

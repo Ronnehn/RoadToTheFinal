@@ -16,7 +16,7 @@
   <small class="eyebrow" style="font:600 .75rem var(--body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)">Picks close in</small>
   <div class="countdown num" id="countdown" data-deadline="{{ deadline_iso }}">{{ deadline_label }}</div>
   <div style="color:var(--muted)">{{ deadline_label }} · {{ state.entries|length }} {{ 'player has' if state.entries|length == 1 else 'players have' }} joined. Everyone's six stays hidden until the deadline.</div>
-  <a class="btn primary" href="/pick">Make your pick</a>
+  {% if self_signup %}<a class="btn primary" href="/pick">Make your pick</a>{% else %}<span class="hint">The organisers enter everyone's teams. Post your six in the forum topic.</span>{% endif %}
 </div>
 {% endif %}
 
@@ -26,7 +26,7 @@
   {% if state.entries %}
   <div class="namelist">{% for e in state.entries %}<span>{{ e.name }}</span>{% endfor %}</div>
   {% else %}
-  <div class="empty" style="padding:30px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:var(--radius)">Nobody has joined yet. <a href="/pick">Be the first →</a></div>
+  <div class="empty" style="padding:30px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:var(--radius)">Nobody has joined yet.{% if self_signup %} <a href="/pick">Be the first →</a>{% endif %}</div>
   {% endif %}
 
 {% elif not rnd %}
@@ -47,6 +47,7 @@
 
 {% else %}
   {% include "_board.html" %}
+  {% include "_leaders.html" %}
 {% endif %}
 {% endblock %}
 

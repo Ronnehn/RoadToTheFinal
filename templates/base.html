@@ -39,7 +39,7 @@
   <nav class="tabs" aria-label="Sections">
     <a href="/" {% if active_tab == 'leaderboard' %}aria-current="page"{% endif %}>Leaderboard</a>
     <a href="/teams" {% if active_tab == 'teams' %}aria-current="page"{% endif %}>Teams</a>
-    <a href="/pick" {% if active_tab == 'pick' %}aria-current="page"{% endif %}>Make your pick</a>
+    {% if self_signup or is_admin %}<a href="/pick" {% if active_tab == 'pick' %}aria-current="page"{% endif %}>{{ 'Make your pick' if self_signup else 'Add / edit entry' }}</a>{% endif %}
     {% if is_admin %}
     <a href="/admin" {% if active_tab == 'admin' %}aria-current="page"{% endif %}>Organiser</a>
     <a href="/admin/results" {% if active_tab == 'results' %}aria-current="page"{% endif %}>Enter results</a>

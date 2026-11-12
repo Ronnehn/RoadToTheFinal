@@ -56,6 +56,8 @@ def is_admin(request):
 
 def page(request, template, status_code=200, **ctx):
     ctx.setdefault("state", None)
+    ctx.setdefault("BASE", game.base_table())
+    ctx.setdefault("self_signup", game.self_signup())
     ctx.update(is_admin=is_admin(request), admin_user=request.session.get("admin_user", ""), picks_open=game.picks_open(), deadline_label=game.deadline_label(),
                deadline_iso=game.deadline().isoformat(), active_tab=ctx.get("active_tab", ""))
     return templates.TemplateResponse(request, template, ctx, status_code=status_code)
@@ -92,12 +94,14 @@ def simulate(request: Request):
             return max(lo, min(hi, int(q.get(k, default))))
         except ValueError:
             return default
-    start = num("start", real_last + 1 if real_last else 1, 1, 14)
-    n = num("rounds", 5, 1, 14)
+    start = num("start", real_last + 1 if real_last else 1, 1, game.MAX_ROUNDS)
+    n = num("rounds", 5, 1, game.MAX_ROUNDS)
     seed = num("seed", 2026, 0, 10**9)
     sim = game.simulate(s, start, n, seed, game.settings())
     rnd = pick_round(s, request)
     ctx = board_context(s, rnd, False)
+    players_bb, teams_bb, kos_bb = game.forum_tables(s, rnd) if rnd and s.entries else ("", "", "")
+    ctx.update(forum_players=players_bb, forum_teams=teams_bb, forum_kos=kos_bb, leaders=s.leaders())
     return page(request, "admin/simulate.html", active_tab="simulate", start=start, n=n, seed=seed, sim=sim,
                 real_last=real_last, **ctx)
 
@@ -113,7 +117,7 @@ def leaderboard(request: Request):
     prev_score = {e["id"]: e["score"] for e in prev}
     ko_now = [t for t in s.teams if s.outs.get(t["id"]) and s.outs[t["id"]]["round"] == rnd]
     ko_before = [t for t in s.teams if s.outs.get(t["id"]) and s.outs[t["id"]]["round"] < rnd]
-    return page(request, "leaderboard.html", state=s, rnd=rnd, rows=rows, prev_rank=prev_rank, prev_score=prev_score,
+    return page(request, "leaderboard.html", state=s, rnd=rnd, rows=rows, prev_rank=prev_rank, prev_score=prev_score, leaders=s.leaders(),
                 ko_now=ko_now, ko_before=ko_before, hide=hide, active_tab="leaderboard",
                 still_in=len(s.active_after(rnd)) if rnd else len(s.teams))
 
@@ -135,6 +139,9 @@ def editing_entry(request):
 
 @app.get("/pick", response_class=HTMLResponse)
 def pick_form(request: Request):
+    if not game.self_signup() and not is_admin(request):
+        return page(request, "message.html", title="Entries are added by the organisers",
+                    text="This year the organisers enter everyone's six teams. Post your picks in the forum topic; you'll see them here after the deadline.")
     s = State()
     e = editing_entry(request)
     form = {"name": e["name"], **{f"g{g}": e[f"g{g}"] for g in GROUPS}} if e else {}
@@ -149,6 +156,8 @@ def pick_new(request: Request):
 
 @app.get("/pick/change", response_class=HTMLResponse)
 def change_form(request: Request):
+    if not game.self_signup():
+        return RedirectResponse("/pick", 303)
     return page(request, "change.html", active_tab="pick", error=None, name="")
 
 
@@ -157,6 +166,8 @@ _pin_fails: dict[str, list[float]] = {}
 
 @app.post("/pick/change", response_class=HTMLResponse)
 async def change_login(request: Request):
+    if not game.self_signup():
+        return RedirectResponse("/pick", 303)
     form = await request.form()
     name = " ".join((form.get("name") or "").split())
     pin = (form.get("pin") or "").strip()
@@ -179,6 +190,8 @@ async def change_login(request: Request):
 
 @app.post("/api/check")
 async def api_check(request: Request):
+    if not game.self_signup() and not is_admin(request):
+        raise HTTPException(403)
     data = await request.json()
     s = State()
     picks = {}
@@ -197,6 +210,8 @@ async def api_check(request: Request):
 async def api_random(request: Request):
     """A random free six: keeps the groups the player already picked and fills the rest."""
     import random
+    if not game.self_signup() and not is_admin(request):
+        raise HTTPException(403)
     data = await request.json()
     s = State()
     keep = {}
@@ -224,6 +239,8 @@ _recent_posts: dict[str, list[float]] = {}
 
 @app.post("/pick", response_class=HTMLResponse)
 async def pick_submit(request: Request):
+    if not game.self_signup() and not is_admin(request):
+        raise HTTPException(403)
     form = await request.form()
     s = State()
     ip = request.client.host if request.client else "?"
@@ -375,6 +392,15 @@ async def admin_settings(request: Request):
     except ValueError:
         return RedirectResponse("/admin?msg=That+deadline+is+not+a+valid+date.", 303)
     game.set_setting("et_goals", "1" if form.get("et_goals") else "0")
+    game.set_setting("self_signup", "1" if form.get("self_signup") else "0")
+    import json
+    table = {}
+    for r in range(1, game.MAX_ROUNDS + 1):
+        v = (form.get(f"win_{r}") or "").replace(".", "").replace(",", "").strip()
+        if v.isdigit() and int(v) > 0:
+            table[r] = int(v)
+    if table:
+        game.set_setting("points_table", json.dumps(table))
     game.set_setting("pen_goals", "1" if form.get("pen_goals") else "0")
     return RedirectResponse("/admin?msg=Settings+saved.", 303)
 
@@ -488,8 +514,8 @@ async def results_read(request: Request):
     text = form.get("text") or ""
     parsed = game.parse_standings(text, s)
     problems = []
-    if not game.BASE.get(parsed["round"]):
-        problems.append("The points table only goes up to round 14.")
+    if not game.base_table().get(parsed["round"]):
+        problems.append(f"The points table only goes up to round {game.MAX_ROUNDS}.")
     if s.round_list and parsed["prev"] is None and parsed["round"] != s.round_list[0]:
         problems.append(f"There is no round {parsed['round'] - 1} yet. Enter the rounds in order.")
     if parsed["missing"]:
@@ -505,7 +531,7 @@ async def results_publish(request: Request):
     form = await request.form()
     s = State()
     parsed = game.parse_standings(form.get("text") or "", s)
-    if parsed["missing"] or not game.BASE.get(parsed["round"]):
+    if parsed["missing"] or not game.base_table().get(parsed["round"]):
         return RedirectResponse("/admin/results?msg=Read+the+results+again.", 303)
     outs = {}
     for t in parsed["active"]:

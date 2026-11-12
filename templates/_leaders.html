@@ -1,0 +1,17 @@
+{% if leaders %}
+<h2 style="margin-top:28px">Leaders per round</h2>
+<p class="lead">Who was on top after every round, and by how much.</p>
+<div class="tablebox"><table class="teams">
+  <thead><tr><th>Round</th><th>Leader</th><th class="r">Score</th><th class="r">Lead</th><th>Number 2</th><th class="r">Teams still in</th></tr></thead>
+  <tbody>{% for l in leaders %}
+    <tr {% if l.round == rnd %}style="background:var(--accent-soft)"{% endif %}>
+      <td class="pos num">{{ l.round }}</td>
+      <td><b>{{ l.name }}</b></td>
+      <td class="r num">{{ nl(l.score) }}</td>
+      <td class="r num">{{ '+' ~ nl(l.lead) if l.second else '—' }}</td>
+      <td style="color:var(--muted)">{{ l.second }}</td>
+      <td class="r num">{{ l.still_in }}</td>
+    </tr>
+  {% endfor %}</tbody>
+</table></div>
+{% endif %}
