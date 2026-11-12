@@ -132,11 +132,11 @@ def taken_keys():
     return {r["combo_key"] for r in db.query("SELECT combo_key FROM rtf_entries")}
 
 
-def availability(state, picks):
+def availability(state, picks, own_key=None):
     """picks: dict group -> team_id (some may be missing).
     Returns which teams would complete an already-taken six, whether the full six is free,
-    and for a taken six the single swaps that make it free."""
-    taken = taken_keys()
+    and for a taken six the single swaps that make it free. own_key: the player's current six (when editing)."""
+    taken = taken_keys() - ({own_key} if own_key else set())
     groups = {g: [t for t in state.teams if t["grp"] == g] for g in GROUPS}
     missing = [g for g in GROUPS if not picks.get(g)]
     blocked = []
@@ -323,3 +323,140 @@ def crest(team, out=False, size=""):
         f'<path d="{shield}" fill="none" stroke="rgba(0,0,0,.35)" stroke-width="1.5"/>{circle}'
         f'<text x="20" y="27" text-anchor="middle" font-family="Barlow Condensed, Arial Narrow, sans-serif" font-weight="800" '
         f'font-size="{9.5 if big else 11.5}" fill="{ink}">{ini}</text>{cross}</svg>')
+
+
+# ---- PIN codes (players change their six until the deadline) ----
+import hashlib as _hl
+import hmac as _hmac
+import os as _os
+
+
+def hash_pin(pin):
+    salt = _os.urandom(16).hex()
+    h = _hl.pbkdf2_hmac("sha256", pin.encode(), bytes.fromhex(salt), 100_000).hex()
+    return f"{salt}${h}"
+
+
+def check_pin(pin, stored):
+    if not stored or "$" not in stored:
+        return False
+    salt, h = stored.split("$", 1)
+    test = _hl.pbkdf2_hmac("sha256", (pin or "").encode(), bytes.fromhex(salt), 100_000).hex()
+    return _hmac.compare_digest(test, h)
+
+
+# ---- paste match results: "Team A 2-1 Team B", "Team A - Team B 1-1 (ns 4-3)", "A 3-2 B nv" ----
+_PEN = [
+    re.compile(r"\(?\s*\b(?:n\.?\s*s\.?|ns|pen(?:alties|alty's|s)?|strafschoppen|shootout)(?![a-z])\s*:?\s*(\d+)\s*[-–:]\s*(\d+)\s*\)?", re.I),
+    re.compile(r"\(\s*(\d+)\s*[-–:]\s*(\d+)\s*\b(?:n\.?\s*s\.?|ns|pen\w*|strafschoppen)\s*\)", re.I),
+]
+_ET = re.compile(r"\(?\s*(?:\bn\.?\s*v\.?(?=\s|\)|$)|\bnv\b|\ba\.?e\.?t\.?(?=\s|\)|$)|na verlenging|verlenging|extra time)\s*\)?", re.I)
+_SCORE = re.compile(r"(\d+)\s*[-–:]\s*(\d+)")
+
+
+def _find_team(state, text):
+    text = text.strip(" -–:\t|#*")
+    if not text:
+        return None, ""
+    exact = state.team_by_name(text)
+    if exact:
+        return exact, text
+    n = norm(text)
+    # longest team name contained in the text (handles extra words around the name)
+    hits = [t for t in state.teams if norm(t["name"]) and (norm(t["name"]) in n or (len(n) >= 4 and n in norm(t["name"])))]
+    hits.sort(key=lambda t: -len(norm(t["name"])))
+    return (hits[0] if hits else None), text
+
+
+def parse_match_lines(text, state, active_ids):
+    """Returns rows per team id (gf, ga, opp, dec, pf, pa) for our teams, plus lines it couldn't read."""
+    rows, unread, notes = {}, [], []
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or not _SCORE.search(line):
+            continue
+        dec, pf, pa = "regular", None, None
+        for rx in _PEN:
+            m = rx.search(line)
+            if m:
+                pf, pa = int(m.group(1)), int(m.group(2))
+                dec = "penalties"
+                line = (line[:m.start()] + " " + line[m.end():]).strip()
+                break
+        m = _ET.search(line)
+        if m:
+            if dec == "regular":
+                dec = "extra"
+            line = (line[:m.start()] + " " + line[m.end():]).strip()
+        m = _SCORE.search(line)
+        if not m:
+            unread.append(raw.strip())
+            continue
+        a_txt, b_txt = line[:m.start()], line[m.end():]
+        ga_, gb_ = int(m.group(1)), int(m.group(2))
+        if not b_txt.strip():  # "Team A - Team B 2-1"
+            parts = re.split(r"\s+[-–]\s+|\s+vs\.?\s+|\s+tegen\s+", a_txt.strip())
+            if len(parts) == 2:
+                a_txt, b_txt = parts
+        ta, a_name = _find_team(state, a_txt)
+        tb, b_name = _find_team(state, b_txt)
+        if not ta and not tb:
+            unread.append(raw.strip())
+            continue
+        for me, my_g, their_g, opp_name, mpf, mpa in ((ta, ga_, gb_, tb["name"] if tb else b_name, pf, pa),
+                                                     (tb, gb_, ga_, ta["name"] if ta else a_name, pa, pf)):
+            if not me:
+                continue
+            if me["id"] not in active_ids:
+                notes.append(f"{me['name']} is already out of the cup; line ignored for this team.")
+                continue
+            rows[me["id"]] = {"gf": my_g, "ga": their_g, "opp": opp_name.strip()[:60], "dec": dec,
+                              "pf": mpf, "pa": mpa, "etf": None, "eta": None}
+    return rows, unread, notes
+
+
+# ---- Hattrick forum tables ----
+def forum_tables(state, rnd):
+    rows = state.standings(rnd)
+    prev = {e["id"]: e["rank"] for e in state.standings(rnd - 1)} if (rnd - 1) in state.rounds else {}
+    out = ["[b]Road to the Final: stand na ronde %d[/b]" % rnd, "[table]",
+           "[tr][th]#[/th][th]Speler[/th][th]+/-[/th][th]Teams in de beker[/th][th]Punten[/th][/tr]"]
+    for e in rows:
+        left = sum(1 for t in state.picks(e) if not state.is_out(t, rnd))
+        mv = ""
+        if e["id"] in prev:
+            d = prev[e["id"]] - e["rank"]
+            mv = f"+{d}" if d > 0 else (str(d) if d < 0 else "=")
+        out.append(f"[tr][td]{e['rank']}[/td][td]{e['name']}[/td][td]{mv}[/td][td]{left}/6[/td][td]{nl(e['score'])}[/td][/tr]")
+    out.append("[/table]")
+    players = "\n".join(out)
+
+    tt = state.team_table(rnd)
+    out = ["[b]Teams na ronde %d[/b]" % rnd, "[table]",
+           "[tr][th]positie[/th][th]team[/th][th]groep[/th][th]beker[/th][th]gekozen[/th][th]punten[/th][/tr]"]
+    for t in tt:
+        o = state.outs.get(t["id"]) if state.is_out(t["id"], rnd) else None
+        status = f"uit (ronde {o['round']})" if o else "in"
+        out.append(f"[tr][td]{t['rank']}[/td][td]{t['name']}[/td][td]{t['grp']}[/td][td]{status}[/td]"
+                   f"[td]{len(state.picked_by(t['id']))}[/td][td]{nl(t['pts'] or 0)}[/td][/tr]")
+    out.append("[/table]")
+    teams = "\n".join(out)
+
+    HOW_NL = {"regular": "in de reguliere speeltijd", "extra": "na verlenging", "penalties": "na strafschoppen"}
+    kos = [t for t in state.teams if state.outs.get(t["id"]) and state.outs[t["id"]]["round"] == rnd]
+    ko_lines = []
+    for t in kos:
+        o = state.outs[t["id"]]
+        txt = f"{t['name']} verloor"
+        if o.get("score"):
+            txt += f" met {o['score']}"
+        if o.get("opp"):
+            txt += f" van {o['opp']}"
+        txt += f" {HOW_NL.get(o.get('how'), '')}"
+        if o.get("how") == "penalties" and o.get("pens"):
+            txt += f" ({o['pens']})"
+        n = len(state.picked_by(t["id"]))
+        txt += f" — {n} speler{'s' if n != 1 else ''} {'zijn' if n != 1 else 'is'} een team kwijt."
+        ko_lines.append(txt)
+    knockouts = ("[b]Uitgeschakeld in ronde %d[/b]\n" % rnd + "\n".join(ko_lines)) if ko_lines else ""
+    return players, teams, knockouts

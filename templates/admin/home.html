@@ -33,7 +33,10 @@
 </form>
 
 <div class="panel" id="players">
-  <h2>Players ({{ state.entries|length }})</h2>
+  <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">
+    <h2 style="margin:0">Players ({{ state.entries|length }})</h2>
+    <a class="btn primary sm" href="/pick/new" style="text-decoration:none">+ Add a player</a>
+  </div>
   {% if state.entries %}
   <div class="tablebox" style="border:0"><table class="plain">
     <thead><tr><th>Name</th><th>Six</th><th>Joined</th><th></th></tr></thead>
@@ -41,11 +44,12 @@
       <tr><td><b>{{ e.name }}</b></td>
         <td><div class="crests">{% for t in state.picks(e) %}<span title="{{ state.by_id[t].name }}">{{ crest(state.by_id[t]) }}</span>{% endfor %}</div></td>
         <td class="num" style="color:var(--muted);white-space:nowrap">{{ (e.created_at or '')[:16] }} UTC</td>
-        <td><form method="post" action="/admin/entries/{{ e.id }}/delete" onsubmit="return confirm('Remove {{ e.name|e }} and free their six?')"><button class="btn sm danger">Remove</button></form></td></tr>
+        <td><div class="row-actions" style="display:flex;gap:6px"><a class="btn sm" href="/admin/entries/{{ e.id }}/edit" style="text-decoration:none">Edit</a>
+          <form method="post" action="/admin/entries/{{ e.id }}/delete" onsubmit="return confirm('Remove {{ e.name|e }} and free their six?')"><button class="btn sm danger">Remove</button></form></div></td></tr>
     {% endfor %}</tbody>
   </table></div>
   {% else %}<p class="hint">Nobody has joined yet. Share the link to <a href="/pick">/pick</a>.</p>{% endif %}
-  <p class="hint" style="margin-top:10px">Picks are final for players. If someone made a mistake, remove them here and let them pick again (or add them yourself on the pick page; it stays open for you after the deadline).</p>
+  <p class="hint" style="margin-top:10px">Players change their own six with their PIN until the deadline. You can add late entries and edit anyone's six at any time; uniqueness is still checked.</p>
 </div>
 
 <div class="panel" id="teams">

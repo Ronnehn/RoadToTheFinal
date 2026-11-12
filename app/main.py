@@ -40,11 +40,11 @@ def is_admin(request):
     return bool(request.session.get("admin"))
 
 
-def page(request, name, status_code=200, **ctx):
+def page(request, template, status_code=200, **ctx):
     ctx.setdefault("state", None)
     ctx.update(is_admin=is_admin(request), picks_open=game.picks_open(), deadline_label=game.deadline_label(),
                deadline_iso=game.deadline().isoformat(), active_tab=ctx.get("active_tab", ""))
-    return templates.TemplateResponse(request, name, ctx, status_code=status_code)
+    return templates.TemplateResponse(request, template, ctx, status_code=status_code)
 
 
 def pick_round(state, request):
@@ -82,10 +82,53 @@ def teams_page(request: Request):
     return page(request, "teams.html", state=s, rnd=rnd, rows=rows, prev=prev, hide=hide, active_tab="teams")
 
 
+def editing_entry(request):
+    eid = request.session.get("entry")
+    return db.one("SELECT * FROM rtf_entries WHERE id = ?", (eid,)) if eid else None
+
+
 @app.get("/pick", response_class=HTMLResponse)
 def pick_form(request: Request):
     s = State()
-    return page(request, "pick.html", state=s, active_tab="pick", error=None, form={}, avail=None)
+    e = editing_entry(request)
+    form = {"name": e["name"], **{f"g{g}": e[f"g{g}"] for g in GROUPS}} if e else {}
+    return page(request, "pick.html", state=s, active_tab="pick", error=None, form=form, avail=None, editing=e)
+
+
+@app.get("/pick/new")
+def pick_new(request: Request):
+    request.session.pop("entry", None)
+    return RedirectResponse("/pick", 303)
+
+
+@app.get("/pick/change", response_class=HTMLResponse)
+def change_form(request: Request):
+    return page(request, "change.html", active_tab="pick", error=None, name="")
+
+
+_pin_fails: dict[str, list[float]] = {}
+
+
+@app.post("/pick/change", response_class=HTMLResponse)
+async def change_login(request: Request):
+    form = await request.form()
+    name = " ".join((form.get("name") or "").split())
+    pin = (form.get("pin") or "").strip()
+    ip = request.client.host if request.client else "?"
+    now = time.time()
+    recent = [t for t in _pin_fails.get(ip, []) if now - t < 600]
+    if not game.picks_open():
+        return page(request, "change.html", active_tab="pick", error=f"Picks closed on {game.deadline_label()}.", name=name)
+    if len(recent) >= 8:
+        return page(request, "change.html", active_tab="pick", error="Too many wrong tries. Wait 10 minutes.", name=name)
+    e = db.one("SELECT * FROM rtf_entries WHERE name_key = ?", (game.norm(name),))
+    if not e or not game.check_pin(pin, e.get("pin_hash")):
+        _pin_fails[ip] = recent + [now]
+        time.sleep(1)
+        msg = "Name or PIN is wrong." if not e or e.get("pin_hash") else "This entry has no PIN. Ask the organiser to change it for you."
+        return page(request, "change.html", active_tab="pick", error=msg, name=name)
+    request.session["entry"] = e["id"]
+    return RedirectResponse("/pick", 303)
 
 
 @app.post("/api/check")
@@ -100,7 +143,8 @@ async def api_check(request: Request):
             tid = 0
         if tid and s.by_id.get(tid, {}).get("grp") == g:
             picks[g] = tid
-    return JSONResponse(game.availability(s, picks))
+    e = editing_entry(request)
+    return JSONResponse(game.availability(s, picks, e["combo_key"] if e else None))
 
 
 _recent_posts: dict[str, list[float]] = {}
@@ -122,7 +166,11 @@ async def pick_submit(request: Request):
             tid = 0
         if tid and s.by_id.get(tid, {}).get("grp") == g:
             picks[g] = tid
-    ctx = dict(state=s, active_tab="pick", form={"name": name, **{f"g{g}": picks.get(g) for g in GROUPS}}, avail=None)
+    editing = editing_entry(request)
+    if editing and not is_admin(request):
+        name = editing["name"]
+    pin = (form.get("pin") or "").strip()
+    ctx = dict(state=s, active_tab="pick", form={"name": name, **{f"g{g}": picks.get(g) for g in GROUPS}}, avail=None, editing=editing)
 
     def fail(msg, avail=None):
         return page(request, "pick.html", error=msg, status_code=400, **{**ctx, "avail": avail})
@@ -138,15 +186,35 @@ async def pick_submit(request: Request):
         return fail("Pick one team in every group.")
     if any(s.is_out(t, s.last_round) for t in picks.values()):
         return fail("One of your teams is already out of the cup. Pick another one.")
-    if db.one("SELECT id FROM rtf_entries WHERE name_key = ?", (game.norm(name),)):
+    clash = db.one("SELECT id FROM rtf_entries WHERE name_key = ?", (game.norm(name),))
+    if clash and (not editing or clash["id"] != editing["id"]):
         return fail(f"The name “{name}” is already in the game. Use your full name or add your Hattrick team name.")
+    if not editing and not is_admin(request) and not (pin.isdigit() and 4 <= len(pin) <= 8):
+        return fail("Choose a PIN of 4 to 8 digits. You need it to change your teams before the deadline.")
+    if pin and not (pin.isdigit() and 4 <= len(pin) <= 8):
+        return fail("A PIN must be 4 to 8 digits.")
     key = game.combo_key([picks[g] for g in GROUPS])
-    avail = game.availability(s, picks)
+    avail = game.availability(s, picks, editing["combo_key"] if editing else None)
     if not avail["free"]:
         return fail("Someone already has exactly these six teams. Swap one team for one of the options below.", avail)
+    if editing:
+        try:
+            sets = ", ".join(f"g{g} = ?" for g in GROUPS)
+            params = [name, game.norm(name), key, *[picks[g] for g in GROUPS]]
+            extra = ""
+            if pin:
+                extra = ", pin_hash = ?"
+                params.append(game.hash_pin(pin))
+            db.execute(f"UPDATE rtf_entries SET name = ?, name_key = ?, combo_key = ?, {sets}{extra} WHERE id = ?", (*params, editing["id"]))
+        except Exception:
+            return fail("Someone submitted exactly these six teams a moment ago. Swap one team.",
+                        game.availability(State(), picks, editing["combo_key"]))
+        request.session.pop("entry", None)
+        entry = db.one("SELECT * FROM rtf_entries WHERE id = ?", (editing["id"],))
+        return page(request, "done.html", state=State(), entry=entry, active_tab="pick", changed=True, pin_set=bool(entry.get("pin_hash")))
     try:
-        db.execute(f"INSERT INTO rtf_entries (name, name_key, combo_key, {', '.join('g' + g for g in GROUPS)}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                   (name, game.norm(name), key, *[picks[g] for g in GROUPS]))
+        db.execute(f"INSERT INTO rtf_entries (name, name_key, combo_key, {', '.join('g' + g for g in GROUPS)}, pin_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                   (name, game.norm(name), key, *[picks[g] for g in GROUPS], game.hash_pin(pin) if pin else None))
     except Exception as e:  # UNIQUE constraint: someone submitted the same name or six a moment ago
         msg = str(e).lower()
         if "name_key" in msg:
@@ -154,7 +222,7 @@ async def pick_submit(request: Request):
         return fail("Someone submitted exactly these six teams a moment ago. Swap one team for one of the options below.",
                     game.availability(State(), picks))
     entry = db.one("SELECT * FROM rtf_entries WHERE combo_key = ?", (key,))
-    return page(request, "done.html", state=State(), entry=entry, active_tab="pick")
+    return page(request, "done.html", state=State(), entry=entry, active_tab="pick", changed=False, pin_set=bool(pin))
 
 
 @app.get("/files/{file_id}")
@@ -243,6 +311,22 @@ def delete_entry(request: Request, eid: int):
     return RedirectResponse("/admin?msg=Player+removed.#players", 303)
 
 
+@app.get("/admin/entries/{eid}/edit")
+def edit_entry(request: Request, eid: int):
+    require_admin(request)
+    request.session["entry"] = eid
+    return RedirectResponse("/pick", 303)
+
+
+@app.get("/admin/forum", response_class=HTMLResponse)
+def forum(request: Request):
+    require_admin(request)
+    s = State()
+    rnd = pick_round(s, request)
+    players, teams, kos = game.forum_tables(s, rnd) if rnd else ("", "", "")
+    return page(request, "admin/forum.html", state=s, rnd=rnd, players=players, teams=teams, kos=kos, active_tab="forum")
+
+
 @app.post("/admin/teams/{tid}")
 async def update_team(request: Request, tid: int):
     require_admin(request)
@@ -322,6 +406,23 @@ async def results_publish(request: Request):
             outs[t["id"]] = {"how": form.get(f"kohow_{t['id']}") or "regular", "opp": (form.get(f"koopp_{t['id']}") or "").strip()[:60]}
     game.save_round(s, parsed["round"], parsed["found"], outs)
     return RedirectResponse(f"/?round={parsed['round']}", 303)
+
+
+@app.post("/admin/results/paste-matches", response_class=HTMLResponse)
+async def results_paste_matches(request: Request):
+    require_admin(request)
+    form = await request.form()
+    s = State()
+    st = game.settings()
+    rnd = s.last_round + 1 if s.last_round else 1
+    prev = rnd - 1 if (rnd - 1) in s.rounds else None
+    active = s.active_after(prev) if prev else s.teams
+    text = form.get("text") or ""
+    rows, unread, notes = game.parse_match_lines(text, s, {t["id"] for t in active})
+    missing = [t["name"] for t in active if t["id"] not in rows]
+    return page(request, "admin/results.html", state=s, settings=st, mode="matches", parsed=None, text="",
+                errors={}, rows=rows, next_round=rnd, paste_text=text, paste_report={"read": len(rows), "unread": unread,
+                "notes": notes, "missing": missing})
 
 
 def _int(v):

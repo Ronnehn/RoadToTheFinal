@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 {% block title %}You're in · Road to the Final{% endblock %}
 {% block content %}
-<h2>You're in, {{ entry.name }}!</h2>
-<p class="lead">Your six teams are locked in. Nobody else can pick this combination. The leaderboard opens after the deadline ({{ deadline_label }}).</p>
+<h2>{{ 'Saved' if changed else "You're in" }}, {{ entry.name }}!</h2>
+<p class="lead">{% if changed %}Your new six is saved.{% else %}Your six teams are in. Nobody else can pick this combination.{% endif %}
+{% if pin_set %} You can change them until {{ deadline_label }} with your name and PIN under <a href="/pick/change">Change my teams</a>.{% endif %} The leaderboard opens after the deadline.</p>
 <div class="done-six">
   {% for g in GROUPS %}{% set t = state.by_id[entry['g' ~ g]] %}
   <div><span class="poule-tag">{{ g }}</span>{{ crest(t, False, 'md') }}<b>{{ t.name }}</b></div>
