@@ -317,6 +317,7 @@ STATIC_LOGOS = {
     "De Remmies": "de-remmies.png",
     "BPP United": "bpp-united.png",
     "Strike Back": "strike-back.png",
+    "LipNeusVleesVet 3.0": "lipneusvleesvet-3-0.png",
     "FC Kick and Rush": "fc-kick-and-rush.png",   # not in the groups yet; shows if a team is renamed to this
 }
 
