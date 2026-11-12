@@ -310,6 +310,9 @@ STATIC_LOGOS = {
     "miracle": "miracle.png",
     "Sunbaked Surfers": "sunbaked-surfers.png",
     "Warriors of Hearts United": "warriors-of-hearts-united.png",
+    "Paniek Zaaiende Zigeuners": "paniek-zaaiende-zigeuners.png",
+    "De Snelle Jelles": "de-snelle-jelles.png",
+    "Lazio Roma": "lazio-roma.png",
 }
 
 
