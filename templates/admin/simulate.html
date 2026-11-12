@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Test run · Road to the Final{% endblock %}
+{% block chip %}
+{% if sim and state.round_list %}
+<form class="round-chip" method="get" action="/admin/simulate">
+  <input type="hidden" name="go" value="1"><input type="hidden" name="start" value="{{ start }}">
+  <input type="hidden" name="rounds" value="{{ n }}"><input type="hidden" name="seed" value="{{ seed }}">
+  <label for="roundSel">Test standings after</label>
+  <select id="roundSel" name="round" onchange="this.form.submit()">
+    {% for r in state.round_list %}<option value="{{ r }}" {% if r == rnd %}selected{% endif %}>Round {{ r }}{{ ' (test)' if r >= start }}</option>{% endfor %}
+  </select>
+</form>
+{% else %}{{ super() }}{% endif %}
+{% endblock %}
+{% block content %}
+<div class="ko-banner" style="border-left-color:var(--accent)">
+  <b class="ko-title" style="color:var(--accent)">Test run · nothing is saved</b>
+  <p class="ko-earlier" style="margin-top:0">Plays random rounds with the {{ state.entries|length }} players' current picks, so you can see how the leaderboard, knock-outs and forum tables behave. The real game is not touched. Same settings + same seed = same results; change the seed for a different run.</p>
+</div>
+
+<form class="panel" method="get" action="/admin/simulate">
+  <input type="hidden" name="go" value="1">
+  <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+    <div class="field"><label for="start">Start at round</label><input type="number" id="start" name="start" min="1" max="14" value="{{ start }}">
+      <span class="hint">{% if real_last %}Real results go up to round {{ real_last }}.{% else %}No real results yet.{% endif %}</span></div>
+    <div class="field"><label for="rounds">Number of rounds</label><input type="number" id="rounds" name="rounds" min="1" max="14" value="{{ n }}"></div>
+    <div class="field"><label for="seed">Seed</label><input type="number" id="seed" name="seed" min="0" value="{{ seed }}"></div>
+  </div>
+  <div class="btnrow" style="margin-top:0">
+    <button class="btn primary">Run test</button>
+    <a class="btn" href="/admin/simulate?go=1&start={{ start }}&rounds={{ n }}&seed={{ (seed * 7919 + 13) % 1000000 }}" style="text-decoration:none">New random run</a>
+  </div>
+</form>
+
+{% if sim %}
+  {% for note in sim.notes %}<p class="warn">{{ note }}</p>{% endfor %}
+  {% if not state.entries %}<p class="warn">There are no players yet. Import or add players first to see a leaderboard.</p>{% endif %}
+  {% if rnd %}
+    {% include "_board.html" %}
+    {% if sim.log.get(rnd) %}
+    <h2 style="margin-top:28px">Random results in round {{ rnd }}</h2>
+    <div class="tablebox"><table class="teams">
+      <thead><tr><th>Team</th><th>Result</th><th>Opponent</th><th class="r">Points</th></tr></thead>
+      <tbody>{% for m in sim.log[rnd] %}
+        <tr class="{{ 'is-out' if m.lost }}"><td><div class="tm">{{ crest(m.team, m.lost) }}<span>{{ m.team.name }}</span></div></td>
+          <td class="num">{{ m.gf }}-{{ m.ga }}{% if m.dec == 'extra' %} nv{% elif m.dec == 'penalties' %} ns {{ m.pf }}-{{ m.pa }}{% endif %}
+            {% if m.lost %}<span class="badge out">out</span>{% endif %}</td>
+          <td>{{ m.opp }}</td><td class="r num">{{ nl(m.points, 0) }}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% endif %}
+  {% endif %}
+{% endif %}
+{% endblock %}

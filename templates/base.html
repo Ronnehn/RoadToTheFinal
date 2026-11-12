@@ -44,7 +44,8 @@
     <a href="/admin" {% if active_tab == 'admin' %}aria-current="page"{% endif %}>Organiser</a>
     <a href="/admin/results" {% if active_tab == 'results' %}aria-current="page"{% endif %}>Enter results</a>
     <a href="/admin/forum" {% if active_tab == 'forum' %}aria-current="page"{% endif %}>Forum tables</a>
-    <a href="/admin/logout" class="admin-link">Log out</a>
+    <a href="/admin/simulate" {% if active_tab == 'simulate' %}aria-current="page"{% endif %}>Test run</a>
+    <a href="/admin/logout" class="admin-link">Log out{% if admin_user %} ({{ admin_user }}){% endif %}</a>
     {% endif %}
   </nav>
 

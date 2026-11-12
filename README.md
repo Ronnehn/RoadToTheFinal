@@ -4,7 +4,8 @@ A cup prediction game. Players pick six teams (one from each group), every playe
 and weekly cup results build the leaderboard.
 
 - Public: `/` leaderboard, `/teams`, `/pick`
-- Organiser: `/admin` (login with `ADMIN_USERNAME` / `ADMIN_PASSWORD`)
+- Organiser: `/admin`. Accounts come from the Render environment variable `ADMIN_USERS`
+  (`name1:password1;name2:password2`), so no passwords are stored in the code.
 
 Stack: FastAPI + Jinja templates and its own free Turso (libSQL) database, running as a separate Render web
 service, next to the portfolio. All tables start with `rtf_`. Logos are stored in the database too, because
@@ -45,6 +46,9 @@ knock-outs in Hattrick forum markup (`[table][tr][td]`), each with a Copy button
 
 Made a mistake? Organiser → Rounds → **Remove round N** removes the latest round and its knock-outs.
 
+**Test run**: Organiser → Test run plays X random rounds with the current players' picks and shows the
+leaderboard, knock-outs and random results per round. Nothing is saved; the same seed gives the same run.
+
 ## Run locally
 
 ```bash
@@ -58,7 +62,7 @@ Without Turso variables it uses a local `roadtothefinal.db` file.
 ## Deploy on Render
 
 1. Turso: create a database called `roadtothefinal`, copy its URL and create a token (Read & Write, never expires).
-2. Render: **+ New → Blueprint**, pick this repo. Fill in `ADMIN_PASSWORD`, `TURSO_DATABASE_URL`,
+2. Render: **+ New → Blueprint**, pick this repo. Fill in `ADMIN_USERS`, `TURSO_DATABASE_URL`,
    `TURSO_AUTH_TOKEN` (`SECRET_KEY` is generated). Deploy.
 3. Log in at `/admin`, check the deadline, upload logos, share the `/pick` link.
 
