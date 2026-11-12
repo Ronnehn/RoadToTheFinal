@@ -327,6 +327,38 @@ def forum(request: Request):
     return page(request, "admin/forum.html", state=s, rnd=rnd, players=players, teams=teams, kos=kos, active_tab="forum")
 
 
+@app.get("/admin/import", response_class=HTMLResponse)
+def import_form(request: Request):
+    require_admin(request)
+    return page(request, "admin/import.html", state=State(), text="", results=None, done=None, active_tab="admin")
+
+
+@app.post("/admin/import", response_class=HTMLResponse)
+async def import_preview(request: Request):
+    require_admin(request)
+    form = await request.form()
+    s = State()
+    text = form.get("text") or ""
+    results = game.parse_entries_text(text, s)
+    if form.get("action") != "import":
+        return page(request, "admin/import.html", state=s, text=text, results=results, done=None, active_tab="admin")
+    added, skipped = [], []
+    for i, r in enumerate(results):
+        if not form.get(f"take_{i}"):
+            continue
+        if not r["ok"] or r.get("clash") or r["already_in"]:
+            skipped.append(r["name"])
+            continue
+        try:
+            db.execute(f"INSERT INTO rtf_entries (name, name_key, combo_key, {', '.join('g' + g for g in GROUPS)}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                       (r["name"][:40], game.norm(r["name"]), r["key"], *[r["picks"][g]["id"] for g in GROUPS]))
+            added.append(r["name"])
+        except Exception:
+            skipped.append(r["name"])
+    return page(request, "admin/import.html", state=State(), text="", results=None, done={"added": added, "skipped": skipped},
+                active_tab="admin")
+
+
 @app.post("/admin/teams/{tid}")
 async def update_team(request: Request, tid: int):
     require_admin(request)

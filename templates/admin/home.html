@@ -35,7 +35,8 @@
 <div class="panel" id="players">
   <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">
     <h2 style="margin:0">Players ({{ state.entries|length }})</h2>
-    <a class="btn primary sm" href="/pick/new" style="text-decoration:none">+ Add a player</a>
+    <span style="display:flex;gap:8px"><a class="btn sm" href="/admin/import" style="text-decoration:none">Import from forum</a>
+    <a class="btn primary sm" href="/pick/new" style="text-decoration:none">+ Add a player</a></span>
   </div>
   {% if state.entries %}
   <div class="tablebox" style="border:0"><table class="plain">
