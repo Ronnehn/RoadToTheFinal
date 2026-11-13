@@ -34,9 +34,9 @@ def base_table(s=None):
     return table
 STEP = {"win": 0, "winET": -5000, "winPen": -10000, "lossPen": -20000, "lossET": -25000, "loss": -30000}
 GOAL_FOR, GOAL_AGAINST = 501, 500
-RESULT_LABEL = {"win": "Win", "winET": "Win after extra time", "winPen": "Win on penalties",
-                "lossPen": "Loss on penalties", "lossET": "Loss after extra time", "loss": "Loss"}
-HOW = {"regular": "in regular time", "extra": "after extra time", "penalties": "on penalties"}
+RESULT_LABEL = {"win": "Winst", "winET": "Winst na verlenging", "winPen": "Winst na strafschoppen",
+                "lossPen": "Verlies na strafschoppen", "lossET": "Verlies na verlenging", "loss": "Verlies"}
+HOW = {"regular": "in de reguliere speeltijd", "extra": "na verlenging", "penalties": "na strafschoppen"}
 
 
 def norm(s):
@@ -233,32 +233,32 @@ def compute_match(row, rnd, prev_avg, prev_played, s):
     """row: dict with gf, ga, dec, etf, eta, pf, pa (ints or None). Returns dict or raises ValueError."""
     gf, ga, dec = row.get("gf"), row.get("ga"), row.get("dec") or "regular"
     if gf is None or ga is None:
-        raise ValueError("score missing")
+        raise ValueError("uitslag ontbreekt")
     table = base_table(s)
     if rnd not in table:
-        raise ValueError(f"the points table only goes up to round {MAX_ROUNDS}")
+        raise ValueError(f"de puntentabel gaat tot ronde {MAX_ROUNDS}")
     if dec == "regular":
         if gf == ga:
-            raise ValueError("a match decided in regular time can't end level")
+            raise ValueError("een wedstrijd in de reguliere speeltijd kan niet gelijk eindigen")
         key = "win" if gf > ga else "loss"
     elif dec == "extra":
         if gf == ga:
-            raise ValueError("level after extra time means penalties")
+            raise ValueError("gelijk na verlenging betekent strafschoppen")
         key = "winET" if gf > ga else "lossET"
     elif dec == "penalties":
         if gf != ga:
-            raise ValueError("a shootout only happens after a level score")
+            raise ValueError("strafschoppen komen alleen na een gelijke stand")
         pf, pa = row.get("pf"), row.get("pa")
         if pf is None or pa is None or pf == pa:
-            raise ValueError("enter a shootout score with a winner")
+            raise ValueError("vul een strafschopstand met een winnaar in")
         key = "winPen" if pf > pa else "lossPen"
     else:
-        raise ValueError("unknown result type")
+        raise ValueError("onbekend soort uitslag")
     etf = eta = 0
     if dec != "regular" and s.get("et_goals") != "1":
         etf, eta = row.get("etf") or 0, row.get("eta") or 0
         if etf > gf or eta > ga:
-            raise ValueError("more extra-time goals than goals in total")
+            raise ValueError("meer doelpunten in de verlenging dan in totaal")
     pen_count = dec == "penalties" and s.get("pen_goals") == "1"
     goals_for = gf - etf + ((row.get("pf") or 0) if pen_count else 0)
     goals_ag = ga - eta + ((row.get("pa") or 0) if pen_count else 0)
@@ -297,11 +297,11 @@ def save_round(state, rnd, avgs, outs, matches=None):
 
 
 def out_text(o):
-    parts = ["lost"]
+    parts = ["verloor"]
     if o.get("score"):
-        parts.append(o["score"])
+        parts.append(f"met {o['score']}")
     if o.get("opp"):
-        parts.append(f"to {o['opp']}")
+        parts.append(f"van {o['opp']}")
     parts.append(HOW.get(o.get("how"), ""))
     txt = " ".join(p for p in parts if p)
     if o.get("how") == "penalties" and o.get("pens"):
@@ -477,7 +477,7 @@ def parse_match_lines(text, state, active_ids):
             if not me:
                 continue
             if me["id"] not in active_ids:
-                notes.append(f"{me['name']} is already out of the cup; line ignored for this team.")
+                notes.append(f"{me['name']} ligt al uit de beker; regel voor dit team overgeslagen.")
                 continue
             rows[me["id"]] = {"gf": my_g, "ga": their_g, "opp": opp_name.strip()[:60], "dec": dec,
                               "pf": mpf, "pa": mpa, "etf": None, "eta": None}
@@ -617,15 +617,15 @@ def parse_entries_text(text, state):
             if overall["id"] != team["id"] and o_sc > sc + 0.05:
                 team, sc = overall, o_sc
             if team["grp"] in picks and picks[team["grp"]]["id"] != team["id"]:
-                problems.append(f"two teams from group {team['grp']}: {picks[team['grp']]['name']} and {team['name']}")
+                problems.append(f"twee teams uit groep {team['grp']}: {picks[team['grp']]['name']} en {team['name']}")
                 continue
             picks[team["grp"]] = team
             if sc < 0.9 and norm(c["text"]) != norm(team["name"]):
                 c["guess"] = True
-                problems.append(f"read “{c['text']}” as {team['name']}")
+                problems.append(f"gelezen: “{c['text']}” als {team['name']}")
         missing = [g for g in GROUPS if g not in picks]
         if missing:
-            problems.append("no team for group " + ", ".join(missing))
+            problems.append("geen team voor groep " + ", ".join(missing))
         key = combo_key([picks[g]["id"] for g in GROUPS]) if not missing else None
         name_key = norm(b["name"])
         if name_key in seen:
@@ -633,9 +633,9 @@ def parse_entries_text(text, state):
             if prev["key"] == key:
                 prev["listed_twice"] = True
                 continue
-            problems.append("this name appears twice with different teams; the first one is used")
+            problems.append("deze naam staat er twee keer in met andere teams; de eerste telt")
         r = {"name": b["name"], "picks": picks, "key": key, "problems": problems, "ignored": ignored,
-             "ok": not missing, "listed_twice": False, "guessed": [p for p in problems if p.startswith("read ")]}
+             "ok": not missing, "listed_twice": False, "guessed": [p for p in problems if p.startswith("gelezen")]}
         if name_key not in seen:
             seen[name_key] = r
             results.append(r)
@@ -685,12 +685,12 @@ def simulate(state, start, n, seed, s):
     state.totals = {r: {tid: state.rounds[r][tid] * state.played[r].get(tid, 0) for tid in state.rounds[r]} for r in state.rounds}
     for rnd in range(start, start + n):
         if rnd not in base_table(s):
-            notes.append(f"The points table stops at round {MAX_ROUNDS}, so the test run stops there.")
+            notes.append(f"De puntentabel stopt bij ronde {MAX_ROUNDS}, dus de testronde stopt daar.")
             break
         prev = rnd - 1 if (rnd - 1) in state.rounds else None
         active = [t for t in state.teams if not (prev and state.is_out(t["id"], prev))]
         if not active:
-            notes.append(f"No teams left after round {rnd - 1}.")
+            notes.append(f"Na ronde {rnd - 1} zijn er geen teams meer over.")
             break
         rng.shuffle(active)
         pairs, i = [], 0
@@ -779,3 +779,120 @@ def add_test_players(state, n, seed):
         state.entries.append({"id": -added, "name": f"Test player {added}", "combo_key": k,
                               **{f"g{i + 1}": six[i] for i in range(6)}})
 
+
+
+# ---- Excel export (Dutch, in the organiser's own layout: '#' before knocked-out teams) ----
+def build_workbook(state):
+    import io
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+    from openpyxl.utils import get_column_letter
+
+    rnd = state.last_round
+    wb = Workbook()
+    head_font = Font(bold=True, color="FFFFFF")
+    head_fill = PatternFill("solid", fgColor="0F1D36")
+    out_font = Font(color="9AA7BD", strike=True)
+
+    def header(ws, cols, widths):
+        ws.append(cols)
+        for i, w in enumerate(widths, 1):
+            c = ws.cell(1, i)
+            c.font, c.fill, c.alignment = head_font, head_fill, Alignment(horizontal="center", vertical="center", wrap_text=True)
+            ws.column_dimensions[get_column_letter(i)].width = w
+        ws.freeze_panes = "A2"
+
+    def label(t):
+        return ("# " if rnd and state.is_out(t["id"], rnd) else "") + t["name"]
+
+    # Teams: average per team (+ per round), status
+    ws = wb.active
+    ws.title = "Teams"
+    rounds = state.round_list
+    header(ws, ["Team", "Groep", "Beker", "Gespeeld", "Totaal punten", "Gemiddelde"] + [f"Na ronde {r}" for r in rounds],
+           [30, 8, 16, 10, 15, 14] + [12] * len(rounds))
+    for t in state.team_table(rnd) if rnd else state.teams:
+        o = state.outs.get(t["id"]) if rnd and state.is_out(t["id"], rnd) else None
+        played = state.played.get(rnd, {}).get(t["id"], 0) if rnd else 0
+        avg = state.rounds.get(rnd, {}).get(t["id"]) if rnd else None
+        ws.append([label(t), int(t["grp"]), f"uit (ronde {o['round']})" if o else "in", played,
+                   round(avg * played, 2) if avg is not None else None, avg]
+                  + [state.rounds[r].get(t["id"]) for r in rounds])
+        if o:
+            ws.cell(ws.max_row, 1).font = out_font
+    for row in ws.iter_rows(min_row=2, min_col=5):
+        for c in row:
+            c.number_format = "#,##0.00"
+    n_teams = ws.max_row
+
+    # Players: six teams, score = average of the six team averages (formula), teams still in (formula)
+    wp = wb.create_sheet("Stand spelers")
+    header(wp, ["Positie", "Speler", "Punten", "Teams in de beker"] + [f"Groep {g}" for g in GROUPS],
+           [9, 24, 14, 12] + [26] * 6)
+    rows = state.standings(rnd) if rnd else [{**e, "rank": i + 1, "score": None} for i, e in enumerate(state.entries)]
+    for i, e in enumerate(rows, start=2):
+        names = [label(state.by_id[tid]) for tid in state.picks(e)]
+        look = ",".join(f"VLOOKUP({get_column_letter(5 + k)}{i},Teams!$A$2:$F${n_teams},6,FALSE)" for k in range(6))
+        wp.append([e["rank"], e["name"], f"=AVERAGE({look})" if rnd else None, f'=6-COUNTIF(E{i}:J{i},"#*")'] + names)
+        wp.cell(i, 3).number_format = "#,##0.00"
+
+    # Leaders per round
+    wl = wb.create_sheet("Leiders per ronde")
+    header(wl, ["Ronde", "Leider", "Punten", "Voorsprong", "Nummer 2", "Teams nog in"], [8, 24, 14, 14, 24, 12])
+    for l in state.leaders():
+        wl.append([l["round"], l["name"], round(l["score"], 2), round(l["lead"], 2) if l["second"] else None, l["second"], l["still_in"]])
+    for row in wl.iter_rows(min_row=2, min_col=3, max_col=4):
+        for c in row:
+            c.number_format = "#,##0.00"
+
+    # Match results (rounds entered as scores)
+    wm = wb.create_sheet("Uitslagen")
+    header(wm, ["Ronde", "Team", "Tegenstander", "Voor", "Tegen", "Beslist", "Strafschoppen", "Wedstrijdpunten"],
+           [8, 28, 28, 7, 7, 16, 14, 16])
+    DEC = {"regular": "regulier", "extra": "na verlenging", "penalties": "na strafschoppen"}
+    for m in db.query("SELECT * FROM rtf_matches ORDER BY round, team_id"):
+        t = state.by_id.get(m["team_id"])
+        if not t:
+            continue
+        pens = f"{m['pf']}-{m['pa']}" if m["dec"] == "penalties" and m["pf"] is not None else ""
+        wm.append([m["round"], t["name"], m["opp"], m["gf"], m["ga"], DEC.get(m["dec"], m["dec"]), pens, m["points"]])
+        wm.cell(wm.max_row, 8).number_format = "#,##0"
+
+    # Points table
+    wt = wb.create_sheet("Puntentabel")
+    header(wt, ["Ronde", "Winst", "Winst n.v.", "Winst n.s.", "Verlies n.s.", "Verlies n.v.", "Verlies", "Goal voor", "Goal tegen"],
+           [8, 11, 11, 11, 11, 11, 11, 10, 10])
+    for r, w in base_table().items():
+        wt.append([r, w, w - 5000, w - 10000, w - 20000, w - 25000, w - 30000, GOAL_FOR, -GOAL_AGAINST])
+        for c in range(2, 8):
+            wt.cell(wt.max_row, c).number_format = "#,##0"
+
+    wb.move_sheet("Stand spelers", offset=-1)
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+
+
+def forum_entry_text(state, e):
+    """One player's six in the format players post on the forum."""
+    lines = [f"user: {e['name']}", ""]
+    for i, g in enumerate(GROUPS):
+        lines.append(f"Groep {g} - {state.by_id[state.picks(e)[i]]['name']}")
+    return "\n".join(lines)
+
+
+def forum_picks_table(state):
+    """All players with their six teams as a Hattrick forum table (knocked-out teams get a #)."""
+    rnd = state.last_round
+    out = ["[b]Road to the Final: keuzes per speler[/b]", "[table]",
+           "[tr][th]Speler[/th]" + "".join(f"[th]Groep {g}[/th]" for g in GROUPS) + "[/tr]"]
+    for e in sorted(state.entries, key=lambda x: x["name"].lower()):
+        cells = []
+        for tid in state.picks(e):
+            t = state.by_id[tid]
+            cells.append(("# " if rnd and state.is_out(tid, rnd) else "") + t["name"])
+        out.append(f"[tr][td]{e['name']}[/td]" + "".join(f"[td]{c}[/td]" for c in cells) + "[/tr]")
+    out.append("[/table]")
+    return "\n".join(out)

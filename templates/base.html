@@ -25,35 +25,35 @@
         </svg>
         <div>
           <h1>Road to the <span>Final</span></h1>
-          <p>Pick one team per group. Your score is your six teams' average points.</p>
+          <p>Kies één team per groep. Je score is het gemiddelde van je zes teams.</p>
         </div>
       </a>
     </div>
     {% block chip %}
     <div class="deadline-chip {{ '' if picks_open else 'closed' }}">
-      {% if picks_open %}🕗 Picks close <b>{{ deadline_label }}</b>{% else %}Picks closed {{ deadline_label }}{% endif %}
+      {% if picks_open %}🕗 Deadline <b>{{ deadline_label }}</b>{% else %}Inschrijving gesloten {{ deadline_label }}{% endif %}
     </div>
     {% endblock %}
   </header>
 
-  <nav class="tabs" aria-label="Sections">
-    <a href="/" {% if active_tab == 'leaderboard' %}aria-current="page"{% endif %}>Leaderboard</a>
+  <nav class="tabs" aria-label="Onderdelen">
+    <a href="/" {% if active_tab == 'leaderboard' %}aria-current="page"{% endif %}>Stand</a>
     <a href="/teams" {% if active_tab == 'teams' %}aria-current="page"{% endif %}>Teams</a>
-    {% if self_signup or is_admin %}<a href="/pick" {% if active_tab == 'pick' %}aria-current="page"{% endif %}>{{ 'Make your pick' if self_signup else 'Add / edit entry' }}</a>{% endif %}
+    {% if self_signup or is_admin %}<a href="/pick" {% if active_tab == 'pick' %}aria-current="page"{% endif %}>{{ 'Kies je teams' if self_signup else 'Inzending toevoegen / wijzigen' }}</a>{% endif %}
     {% if is_admin %}
-    <a href="/admin" {% if active_tab == 'admin' %}aria-current="page"{% endif %}>Organiser</a>
-    <a href="/admin/results" {% if active_tab == 'results' %}aria-current="page"{% endif %}>Enter results</a>
-    <a href="/admin/forum" {% if active_tab == 'forum' %}aria-current="page"{% endif %}>Forum tables</a>
-    <a href="/admin/simulate" {% if active_tab == 'simulate' %}aria-current="page"{% endif %}>Test run</a>
-    <a href="/admin/logout" class="admin-link">Log out{% if admin_user %} ({{ admin_user }}){% endif %}</a>
+    <a href="/admin" {% if active_tab == 'admin' %}aria-current="page"{% endif %}>Organisatie</a>
+    <a href="/admin/results" {% if active_tab == 'results' %}aria-current="page"{% endif %}>Uitslagen invoeren</a>
+    <a href="/admin/forum" {% if active_tab == 'forum' %}aria-current="page"{% endif %}>Forumtabellen</a>
+    <a href="/admin/simulate" {% if active_tab == 'simulate' %}aria-current="page"{% endif %}>Testronde</a>
+    <a href="/admin/logout" class="admin-link">Uitloggen{% if admin_user %} ({{ admin_user }}){% endif %}</a>
     {% endif %}
   </nav>
 
   <main>{% block content %}{% endblock %}</main>
 
   <footer style="margin-top:40px;color:var(--muted);font-size:.85rem;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">
-    <span>Road to the Final · cup prediction game</span>
-    {% if not is_admin %}<a href="/admin/login" style="color:var(--muted)">Organiser</a>{% endif %}
+    <span>Road to the Final · bekervoorspelling</span>
+    {% if not is_admin %}<a href="/admin/login" style="color:var(--muted)">Organisatie</a>{% endif %}
   </footer>
 </div>
 {% block scripts %}{% endblock %}

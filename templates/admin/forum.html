@@ -1,27 +1,28 @@
 {% extends "base.html" %}
-{% block title %}Forum tables · Road to the Final{% endblock %}
+{% block title %}Forumtabellen · Road to the Final{% endblock %}
 {% block chip %}
 {% if state.round_list %}
 <form class="round-chip" method="get" action="/admin/forum">
-  <label for="roundSel">Tables after</label>
+  <label for="roundSel">Tabellen na</label>
   <select id="roundSel" name="round" onchange="this.form.submit()">
-    {% for r in state.round_list %}<option value="{{ r }}" {% if r == rnd %}selected{% endif %}>Round {{ r }}</option>{% endfor %}
+    {% for r in state.round_list %}<option value="{{ r }}" {% if r == rnd %}selected{% endif %}>Ronde {{ r }}</option>{% endfor %}
   </select>
 </form>
 {% else %}{{ super() }}{% endif %}
 {% endblock %}
 {% block content %}
-<h2>Forum tables</h2>
-<p class="lead">Ready-made Hattrick forum markup. Copy a block and paste it straight into your forum post.</p>
+<h2>Forumtabellen</h2>
+<p class="lead">Kant-en-klare Hattrick-forumcode. Kopieer een blok en plak het direct in je forumbericht.</p>
 {% if not rnd %}
-<p class="hint">Enter a round first; the tables appear here.</p>
-{% else %}
-{% for title, text, id in [('Player standings', players, 'fPlayers'), ('Team standings', teams, 'fTeams'), ('Knocked out this round', kos, 'fKos')] %}
+<p class="hint">Voer eerst een ronde in; dan verschijnen de standen hier.</p>
+{% endif %}
+{% if rnd or picks %}
+{% for title, text, id in [('Stand spelers', players, 'fPlayers'), ('Stand teams', teams, 'fTeams'), ('Uitgeschakeld deze ronde', kos, 'fKos'), ('Keuzes per speler', picks, 'fPicks')] %}
 {% if text %}
 <div class="panel">
   <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
     <h2 style="margin:0">{{ title }}</h2>
-    <button type="button" class="btn primary sm" data-copy="{{ id }}">Copy</button>
+    <button type="button" class="btn primary sm" data-copy="{{ id }}">Kopieer</button>
   </div>
   <textarea id="{{ id }}" readonly style="min-height:{{ 160 if id == 'fKos' else 280 }}px;margin-top:10px">{{ text }}</textarea>
 </div>
@@ -35,7 +36,7 @@ document.addEventListener('click', async e => {
   const b = e.target.closest('[data-copy]'); if (!b) return;
   const ta = document.getElementById(b.dataset.copy);
   try { await navigator.clipboard.writeText(ta.value); } catch { ta.select(); document.execCommand('copy'); }
-  const t = b.textContent; b.textContent = 'Copied'; setTimeout(() => b.textContent = t, 1500);
+  const t = b.textContent; b.textContent = 'Gekopieerd'; setTimeout(() => b.textContent = t, 1500);
 });
 </script>
 {% endblock %}

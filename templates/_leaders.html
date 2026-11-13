@@ -1,8 +1,8 @@
 {% if leaders %}
-<h2 style="margin-top:28px">Leaders per round</h2>
-<p class="lead">Who was on top after every round, and by how much.</p>
+<h2 style="margin-top:28px">Leiders per ronde</h2>
+<p class="lead">Wie er na elke ronde bovenaan stond, en met hoeveel voorsprong.</p>
 <div class="tablebox"><table class="teams">
-  <thead><tr><th>Round</th><th>Leader</th><th class="r">Score</th><th class="r">Lead</th><th>Number 2</th><th class="r">Teams still in</th></tr></thead>
+  <thead><tr><th>Ronde</th><th>Leider</th><th class="r">Score</th><th class="r">Voorsprong</th><th>Nummer 2</th><th class="r">Teams nog in</th></tr></thead>
   <tbody>{% for l in leaders %}
     <tr {% if l.round == rnd %}style="background:var(--accent-soft)"{% endif %}>
       <td class="pos num">{{ l.round }}</td>

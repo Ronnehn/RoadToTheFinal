@@ -1,96 +1,110 @@
 {% extends "base.html" %}
-{% block title %}Organiser · Road to the Final{% endblock %}
+{% block title %}Organisatie · Road to the Final{% endblock %}
 {% block content %}
 {% if msg %}<div class="notice">{{ msg }}</div>{% endif %}
-<h2>Organiser</h2>
-<p class="lead">Only you see this. Players join on the pick page until the deadline; you enter results each week under <a href="/admin/results">Enter results</a>.</p>
+<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center">
+  <h2 style="margin:0">Organisatie</h2>
+  <a class="btn primary" href="/admin/export.xlsx" style="text-decoration:none">⬇ Download Excel</a>
+</div>
+<p class="lead">Alleen de organisatie ziet deze pagina. Spelers voer je in bij Spelers; de uitslagen van elke week bij <a href="/admin/results">Uitslagen invoeren</a>. De Excel-download bevat de stand, de teams, de leiders per ronde, alle uitslagen en de puntentabel.</p>
 
 <div class="summary">
-  <div class="stat"><small>Players</small><b class="num">{{ state.entries|length }}</b></div>
-  <div class="stat"><small>Picks</small><b>{{ 'Open' if picks_open else 'Closed' }}</b></div>
-  <div class="stat"><small>Latest round</small><b class="num">{{ state.last_round or '–' }}</b></div>
-  <div class="stat"><small>Teams still in</small><b class="num">{{ state.active_after(state.last_round)|length }} / {{ state.teams|length }}</b></div>
+  <div class="stat"><small>Spelers</small><b class="num">{{ state.entries|length }}</b></div>
+  <div class="stat"><small>Inschrijving</small><b>{{ 'Open' if picks_open else 'Gesloten' }}</b></div>
+  <div class="stat"><small>Laatste ronde</small><b class="num">{{ state.last_round or '–' }}</b></div>
+  <div class="stat"><small>Teams nog in</small><b class="num">{{ state.active_after(state.last_round)|length }} / {{ state.teams|length }}</b></div>
 </div>
 
 <form class="panel" method="post" action="/admin/settings">
-  <h2>Settings</h2>
+  <h2>Instellingen</h2>
   <div class="grid2">
     <div class="field">
-      <label for="deadline">Pick deadline (Dutch time)</label>
+      <label for="deadline">Deadline (Nederlandse tijd)</label>
       <input type="datetime-local" id="deadline" name="deadline" value="{{ settings.deadline }}" required>
-      <span class="hint">Now: {{ deadline_label }}</span>
+      <span class="hint">Nu: {{ deadline_label }}. Tot de deadline blijven ieders teams verborgen.</span>
     </div>
     <div>
-      <b>Match scores</b><br><span class="hint">How goals count when you enter scores:</span>
+      <b>Uitslagen</b><br><span class="hint">Hoe doelpunten tellen als je uitslagen invoert:</span>
       <div>
-        <label class="check"><input type="checkbox" name="et_goals" {% if settings.et_goals == '1' %}checked{% endif %}><span>Extra-time goals count for +501 / −500 <span class="tag">check rules</span></span></label>
-        <label class="check"><input type="checkbox" name="pen_goals" {% if settings.pen_goals == '1' %}checked{% endif %}><span>Penalty shootout goals count <span class="tag">check rules</span></span></label>
+        <label class="check"><input type="checkbox" name="et_goals" {% if settings.et_goals == '1' %}checked{% endif %}><span>Doelpunten in de verlenging tellen mee voor +501 / −500</span></label>
+        <label class="check"><input type="checkbox" name="pen_goals" {% if settings.pen_goals == '1' %}checked{% endif %}><span>Benutte strafschoppen (shoot-out) tellen mee</span></label>
       </div>
     </div>
   </div>
   <label class="check" style="margin-bottom:12px"><input type="checkbox" name="self_signup" {% if settings.self_signup == '1' %}checked{% endif %}>
-    <span><b>Players can join and change their own six</b> (with a PIN, until the deadline)<br><span class="hint">Off this year: only organisers add and edit entries (Players → Import from forum / + Add a player / Edit).</span></span></label>
+    <span><b>Spelers mogen zelf inschrijven en hun teams wijzigen</b> (met een pincode, tot de deadline)<br><span class="hint">Dit jaar uit: alleen de organisatie voert inzendingen in en wijzigt ze (Spelers → Importeren van forum / + Speler toevoegen / Wijzigen).</span></span></label>
   <details style="margin:6px 0 14px">
-    <summary style="cursor:pointer;font-weight:600">Points table (win points per round, rounds 1–20)</summary>
-    <p class="hint" style="margin-top:8px">Only the win value per round is needed; the other results are fixed steps below it (win after extra time −5.000, on penalties −10.000, loss on penalties −20.000, after extra time −25.000, loss −30.000). Goals: +501 for, −500 against. Rounds 15–20 are not in the official table yet and use 78.000 until you fill in the real values.</p>
+    <summary style="cursor:pointer;font-weight:600">Puntentabel (winstpunten per ronde, ronde 1–20)</summary>
+    <p class="hint" style="margin-top:8px">Alleen de winstwaarde per ronde is nodig; de andere uitslagen zijn vaste stappen daaronder (winst n.v. −5.000, winst n.s. −10.000, verlies n.s. −20.000, verlies n.v. −25.000, verlies −30.000). Doelpunten: +501 voor, −500 tegen. Ronde 15–20 staan nog niet in de officiële tabel en gebruiken 78.000 tot je de echte waarden invult.</p>
     <div class="tablebox" style="border:0"><table class="plain">
-      <thead><tr><th>Round</th><th>Win</th><th class="hide-sm">Win n.v.</th><th class="hide-sm">Win n.s.</th><th class="hide-sm">Loss n.s.</th><th class="hide-sm">Loss n.v.</th><th class="hide-sm">Loss</th></tr></thead>
+      <thead><tr><th>Ronde</th><th>Winst</th><th class="hide-sm">Winst n.v.</th><th class="hide-sm">Winst n.s.</th><th class="hide-sm">Verlies n.s.</th><th class="hide-sm">Verlies n.v.</th><th class="hide-sm">Verlies</th></tr></thead>
       <tbody>{% for r in range(1, 21) %}{% set w = BASE[r] %}
-        <tr><td class="num">{{ r }}{% if r >= 15 %} <span class="tag">check</span>{% endif %}</td>
-          <td><input type="text" inputmode="numeric" name="win_{{ r }}" value="{{ w }}" style="width:110px;border:1px solid var(--line);background:var(--panel-2);border-radius:8px;padding:5px 8px" aria-label="Win points round {{ r }}"></td>
+        <tr><td class="num">{{ r }}{% if r >= 15 %} <span class="tag">controleren</span>{% endif %}</td>
+          <td><input type="text" inputmode="numeric" name="win_{{ r }}" value="{{ w }}" style="width:110px;border:1px solid var(--line);background:var(--panel-2);border-radius:8px;padding:5px 8px" aria-label="Winstpunten ronde {{ r }}"></td>
           <td class="num hide-sm">{{ nl(w - 5000, 0) }}</td><td class="num hide-sm">{{ nl(w - 10000, 0) }}</td><td class="num hide-sm">{{ nl(w - 20000, 0) }}</td>
           <td class="num hide-sm">{{ nl(w - 25000, 0) }}</td><td class="num hide-sm">{{ nl(w - 30000, 0) }}</td></tr>
       {% endfor %}</tbody>
     </table></div>
   </details>
-  <button class="btn primary" type="submit">Save settings</button>
+  <button class="btn primary" type="submit">Instellingen opslaan</button>
 </form>
 
 <div class="panel" id="players">
   <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">
-    <h2 style="margin:0">Players ({{ state.entries|length }})</h2>
-    <span style="display:flex;gap:8px"><a class="btn sm" href="/admin/import" style="text-decoration:none">Import from forum</a>
-    <a class="btn primary sm" href="/pick/new" style="text-decoration:none">+ Add a player</a></span>
+    <h2 style="margin:0">Spelers ({{ state.entries|length }})</h2>
+    <span style="display:flex;gap:8px"><a class="btn sm" href="/admin/import" style="text-decoration:none">Importeren van forum</a>
+    <a class="btn primary sm" href="/pick/new" style="text-decoration:none">+ Speler toevoegen</a></span>
   </div>
   {% if state.entries %}
-  <div class="tablebox" style="border:0"><table class="plain">
-    <thead><tr><th>Name</th><th>Six</th><th>Joined</th><th></th></tr></thead>
-    <tbody>{% for e in state.entries %}
+  <input type="search" id="playerSearch" placeholder="Zoek speler of team…" aria-label="Zoek speler of team"
+         style="margin:10px 0;width:100%;max-width:320px;border:1px solid var(--line);background:var(--panel-2);border-radius:8px;padding:7px 10px">
+  <div class="tablebox" style="border:0"><table class="plain" id="playerTable">
+    <thead><tr><th>Naam</th>{% for g in GROUPS %}<th>Groep {{ g }}</th>{% endfor %}<th></th></tr></thead>
+    <tbody>{% for e in state.entries|sort(attribute='name', case_sensitive=False) %}
       <tr><td><b>{{ e.name }}</b></td>
-        <td><div class="crests">{% for t in state.picks(e) %}<span title="{{ state.by_id[t].name }}">{{ crest(state.by_id[t]) }}</span>{% endfor %}</div></td>
-        <td class="num" style="color:var(--muted);white-space:nowrap">{{ (e.created_at or '')[:16] }} UTC</td>
-        <td><div class="row-actions" style="display:flex;gap:6px"><a class="btn sm" href="/admin/entries/{{ e.id }}/edit" style="text-decoration:none">Edit</a>
-          <form method="post" action="/admin/entries/{{ e.id }}/delete" onsubmit="return confirm('Remove {{ e.name|e }} and free their six?')"><button class="btn sm danger">Remove</button></form></div></td></tr>
+        {% for tid in state.picks(e) %}{% set t = state.by_id[tid] %}{% set o = state.last_round and state.is_out(tid, state.last_round) %}
+        <td class="{{ 'is-out' if o }}" style="font-size:.85rem"><div class="tm">{{ crest(t, o) }}<span>{{ t.name }}</span></div></td>{% endfor %}
+        <td><div class="row-actions" style="display:flex;gap:6px"><a class="btn sm" href="/admin/entries/{{ e.id }}/edit" style="text-decoration:none">Wijzigen</a>
+          <form method="post" action="/admin/entries/{{ e.id }}/delete" onsubmit="return confirm('{{ e.name|e }} verwijderen? Zijn of haar combinatie komt dan weer vrij.')"><button class="btn sm danger">Verwijderen</button></form></div></td></tr>
     {% endfor %}</tbody>
   </table></div>
-  {% else %}<p class="hint">Nobody has joined yet. Share the link to <a href="/pick">/pick</a>.</p>{% endif %}
-  <p class="hint" style="margin-top:10px">{% if settings.self_signup == '1' %}Players change their own six with their PIN until the deadline. {% endif %}You can add late entries and edit anyone's six at any time; uniqueness is still checked.</p>
+  {% else %}<p class="hint">Nog geen spelers. Gebruik <a href="/admin/import">Importeren van forum</a> of <a href="/pick/new">+ Speler toevoegen</a>.</p>{% endif %}
+  <p class="hint" style="margin-top:10px">{% if settings.self_signup == '1' %}Spelers wijzigen hun eigen teams met hun pincode tot de deadline. {% endif %}De organisatie kan altijd late inzendingen toevoegen en ieders teams wijzigen; dubbele combinaties worden nog steeds tegengehouden.</p>
 </div>
 
 <div class="panel" id="teams">
-  <h2>Teams &amp; logos</h2>
-  <p class="hint">Upload a logo (PNG, JPG, WebP or GIF, max 2 MB) to replace the temporary crest. You can fix a team name here too.</p>
+  <h2>Teams &amp; logo's</h2>
+  <p class="hint">Upload een logo (PNG, JPG, WebP of GIF, max. 2 MB) om het huidige logo te vervangen. Je kunt hier ook een teamnaam aanpassen.</p>
   <div class="tablebox" style="border:0"><table class="plain">
     <tbody>{% for t in state.teams %}
       <tr><td style="width:40px"><span class="poule-tag">{{ t.grp }}</span></td>
         <td style="width:50px">{{ crest(t, False, 'md') }}</td>
         <td><form class="teamform" method="post" action="/admin/teams/{{ t.id }}" enctype="multipart/form-data">
-          <input type="text" name="name" value="{{ t.name }}" aria-label="Team name">
-          <input type="file" name="logo" accept="image/png,image/jpeg,image/webp,image/gif" aria-label="Logo for {{ t.name }}">
-          {% if t.logo_id %}<label class="check" style="margin:0"><input type="checkbox" name="remove_logo"><span>Remove logo</span></label>{% endif %}
-          <button class="btn sm">Save</button>
+          <input type="text" name="name" value="{{ t.name }}" aria-label="Teamnaam">
+          <input type="file" name="logo" accept="image/png,image/jpeg,image/webp,image/gif" aria-label="Logo voor {{ t.name }}">
+          {% if t.logo_id %}<label class="check" style="margin:0"><input type="checkbox" name="remove_logo"><span>Logo verwijderen</span></label>{% endif %}
+          <button class="btn sm">Opslaan</button>
         </form></td></tr>
     {% endfor %}</tbody>
   </table></div>
 </div>
 
 <div class="panel">
-  <h2>Rounds</h2>
+  <h2>Rondes</h2>
   {% if state.round_list %}
-  <p>Entered: {% for r in state.round_list %}<a href="/?round={{ r }}">round {{ r }}</a>{{ ', ' if not loop.last }}{% endfor %}.</p>
-  <form method="post" action="/admin/rounds/{{ state.last_round }}/delete" onsubmit="return confirm('Remove round {{ state.last_round }} and its knock-outs?')">
-    <button class="btn sm danger">Remove round {{ state.last_round }}</button> <span class="hint">Use this if you entered a round by mistake.</span>
+  <p>Ingevoerd: {% for r in state.round_list %}<a href="/?round={{ r }}">ronde {{ r }}</a>{{ ', ' if not loop.last }}{% endfor %}.</p>
+  <form method="post" action="/admin/rounds/{{ state.last_round }}/delete" onsubmit="return confirm('Ronde {{ state.last_round }} en de uitschakelingen van die ronde verwijderen?')">
+    <button class="btn sm danger">Ronde {{ state.last_round }} verwijderen</button> <span class="hint">Gebruik dit als je een ronde per ongeluk of fout hebt ingevoerd.</span>
   </form>
-  {% else %}<p class="hint">No rounds yet. Your first paste can be the current standings (for example "Teams na ronde 13"); later rounds build on it.</p>{% endif %}
+  {% else %}<p class="hint">Nog geen rondes. Voer bij <a href="/admin/results">Uitslagen invoeren</a> de uitslagen van ronde 1 in.</p>{% endif %}
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+const ps = document.getElementById('playerSearch');
+if (ps) ps.addEventListener('input', () => {
+  const q = ps.value.toLowerCase().trim();
+  document.querySelectorAll('#playerTable tbody tr').forEach(tr => { tr.hidden = q && !tr.textContent.toLowerCase().includes(q); });
+});
+</script>
 {% endblock %}

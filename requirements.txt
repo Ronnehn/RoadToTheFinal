@@ -5,3 +5,4 @@ python-multipart>=0.0.9
 itsdangerous>=2.2
 libsql>=0.1
 tzdata>=2024.1
+openpyxl>=3.1

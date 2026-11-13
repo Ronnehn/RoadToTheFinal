@@ -1,46 +1,46 @@
 {% extends "base.html" %}
-{% block title %}Import players · Road to the Final{% endblock %}
+{% block title %}Spelers importeren · Road to the Final{% endblock %}
 {% block content %}
-<h2>Import players</h2>
-<p class="lead">Paste the picks from the forum. Each player starts with a line like <code>user: Name</code>, followed by their six teams in any common format (with or without "Groep 1", numbers or dashes). Short names like "Hyenas" or "Biewies" are recognised. Nothing is saved until you click Import.</p>
+<h2>Spelers importeren</h2>
+<p class="lead">Plak de keuzes uit het forum. Elke speler begint met een regel als <code>user: Naam</code>, gevolgd door zijn zes teams in elke gangbare vorm (met of zonder "Groep 1", nummers of streepjes). Korte namen als "Hyenas" of "Biewies" worden herkend. Er wordt pas iets opgeslagen als je op Importeren klikt.</p>
 
 {% if done %}
-<div class="notice"><b>{{ done.added|length }} players imported.</b>{% if done.skipped %} Skipped: {{ done.skipped|join(', ') }}.{% endif %} <a href="/admin#players">See all players</a></div>
+<div class="notice"><b>{{ done.added|length }} spelers geïmporteerd.</b>{% if done.skipped %} Overgeslagen: {{ done.skipped|join(', ') }}.{% endif %} <a href="/admin#players">Bekijk alle spelers</a></div>
 {% endif %}
 
 <form method="post" action="/admin/import">
-  <textarea name="text" spellcheck="false" aria-label="Forum posts with picks" style="min-height:220px">{{ text }}</textarea>
-  <div class="btnrow"><button class="btn primary" name="action" value="preview">Read picks</button></div>
+  <textarea name="text" spellcheck="false" aria-label="Forumberichten met keuzes" style="min-height:220px">{{ text }}</textarea>
+  <div class="btnrow"><button class="btn primary" name="action" value="preview">Keuzes inlezen</button></div>
 
   {% if results is not none %}
   {% set good = results|selectattr('ok')|rejectattr('clash')|rejectattr('already_in')|list %}
   {% set twice = results|selectattr('listed_twice')|list %}
   {% set clashes = results|selectattr('clash')|list %}
   <div class="panel" style="margin-top:16px">
-    <h2 style="margin-top:0">{{ results|length }} players found</h2>
-    <p class="hint">{{ good|length }} ready to import.
-      {% if twice %} {{ twice|length }} {{ 'player was' if twice|length == 1 else 'players were' }} listed twice with the same teams (counted once).{% endif %}
-      {% if clashes %} <span class="warn">{{ clashes|length }} with the same six as someone else.</span>{% else %} <span class="okc">No two players have the same six.</span>{% endif %}
-      Check the rows marked “check”: the site guessed what was meant.</p>
+    <h2 style="margin-top:0">{{ results|length }} spelers gevonden</h2>
+    <p class="hint">{{ good|length }} klaar om te importeren.
+      {% if twice %} {{ twice|length }} {{ 'speler stond' if twice|length == 1 else 'spelers stonden' }} er twee keer in met dezelfde teams (één keer geteld).{% endif %}
+      {% if clashes %} <span class="warn">{{ clashes|length }} met dezelfde zes als iemand anders.</span>{% else %} <span class="okc">Geen twee spelers hebben dezelfde zes.</span>{% endif %}
+      Controleer de regels met “controleer”: daar heeft de site geraden wat bedoeld werd.</p>
     <div class="tablebox" style="border:0"><table class="plain">
-      <thead><tr><th></th><th>Player</th>{% for g in GROUPS %}<th>{{ g }}</th>{% endfor %}<th>Notes</th></tr></thead>
+      <thead><tr><th></th><th>Speler</th>{% for g in GROUPS %}<th>{{ g }}</th>{% endfor %}<th>Opmerkingen</th></tr></thead>
       <tbody>{% for r in results %}{% set can = r.ok and not r.clash and not r.already_in %}
         <tr>
-          <td><input type="checkbox" name="take_{{ loop.index0 }}" {% if can %}checked{% else %}disabled{% endif %} aria-label="Import {{ r.name }}"></td>
+          <td><input type="checkbox" name="take_{{ loop.index0 }}" {% if can %}checked{% else %}disabled{% endif %} aria-label="{{ r.name }} importeren"></td>
           <td><b>{{ r.name }}</b></td>
           {% for g in GROUPS %}<td>{% if g in r.picks %}<span title="{{ r.picks[g].name }}">{{ crest(r.picks[g]) }}</span>{% else %}<span class="warn">?</span>{% endif %}</td>{% endfor %}
           <td style="font-size:.85rem">
-            {% if r.already_in %}<span class="hint">already in the game</span>{% endif %}
-            {% if r.clash %}<span class="warn">same six as {{ r.clash }}</span>{% endif %}
-            {% for p in r.problems %}<span class="{{ 'tag' if p.startswith('read ') else 'warn' }}" style="display:inline-block;margin:2px 0">{{ 'check: ' if p.startswith('read ') }}{{ p }}</span> {% endfor %}
-            {% if r.listed_twice %}<span class="hint">listed twice</span>{% endif %}
-            {% if r.ignored %}<span class="hint">ignored: {{ r.ignored|join(', ') }}</span>{% endif %}
+            {% if r.already_in %}<span class="hint">doet al mee</span>{% endif %}
+            {% if r.clash %}<span class="warn">dezelfde zes als {{ r.clash }}</span>{% endif %}
+            {% for p in r.problems %}<span class="{{ 'tag' if p.startswith('gelezen') else 'warn' }}" style="display:inline-block;margin:2px 0">{{ 'controleer: ' if p.startswith('gelezen') }}{{ p }}</span> {% endfor %}
+            {% if r.listed_twice %}<span class="hint">stond er twee keer in</span>{% endif %}
+            {% if r.ignored %}<span class="hint">genegeerd: {{ r.ignored|join(', ') }}</span>{% endif %}
           </td>
         </tr>
       {% endfor %}</tbody>
     </table></div>
-    <div class="btnrow"><button class="btn primary" name="action" value="import">Import ticked players</button></div>
-    <p class="hint" style="margin-top:8px">Imported players have no PIN. Until the deadline you can change their six under Organiser → Players → Edit.</p>
+    <div class="btnrow"><button class="btn primary" name="action" value="import">Aangevinkte spelers importeren</button></div>
+    <p class="hint" style="margin-top:8px">Geïmporteerde spelers hebben geen pincode. Je past hun zes aan via Organisatie → Spelers → Wijzig.</p>
   </div>
   {% endif %}
 </form>
