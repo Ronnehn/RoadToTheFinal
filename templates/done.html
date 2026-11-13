@@ -1,9 +1,14 @@
 {% extends "base.html" %}
 {% block title %}Je doet mee · Road to the Final{% endblock %}
 {% block content %}
+{% if view_only %}
+<h2>Keuze van {{ entry.name }}</h2>
+<p class="lead"><a href="/admin#players">← Terug naar de spelers</a></p>
+{% else %}
 <h2>{{ 'Opgeslagen' if changed else 'Je doet mee' }}, {{ entry.name }}!</h2>
 <p class="lead">{% if changed %}De nieuwe zes teams zijn opgeslagen.{% else %}De zes teams staan erin. Niemand anders kan deze combinatie nog kiezen.{% endif %}
 {% if pin_set %} Je kunt ze tot {{ deadline_label }} wijzigen met je naam en pincode via <a href="/pick/change">Mijn teams wijzigen</a>.{% endif %} De stand gaat open na de deadline.</p>
+{% endif %}
 <div class="done-six">
   {% for g in GROUPS %}{% set t = state.by_id[entry['g' ~ g]] %}
   <div><span class="poule-tag">{{ g }}</span>{{ crest(t, False, 'md') }}<b>{{ t.name }}</b></div>
@@ -15,6 +20,14 @@
     <button type="button" class="btn primary sm" data-copy="forumEntry">Kopieer</button>
   </div>
   <textarea id="forumEntry" readonly style="min-height:170px;margin-top:10px">{{ forum_entry_text(state, entry) }}</textarea>
+</div>
+<div class="panel">
+  <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
+    <h2 style="margin:0">Hattrick-forumcode</h2>
+    <button type="button" class="btn primary sm" data-copy="forumMarkup">Kopieer</button>
+  </div>
+  <p class="hint" style="margin:6px 0 0">Plak dit in een forumbericht op Hattrick; het verschijnt daar als tabel.</p>
+  <textarea id="forumMarkup" readonly style="min-height:200px;margin-top:10px">{{ forum_entry_markup(state, entry) }}</textarea>
 </div>
 <p class="hint">Tip: maak een screenshot van deze pagina, dan weet je je teams nog.</p>
 <a class="btn primary" href="/" style="text-decoration:none">Naar de stand</a>

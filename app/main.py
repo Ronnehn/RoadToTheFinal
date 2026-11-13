@@ -39,7 +39,7 @@ app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, same_site="lax", https_only=ON_RENDER, max_age=60 * 60 * 12)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
-templates.env.globals.update(forum_entry_text=game.forum_entry_text, crest=game.crest, nl=game.nl, out_text=game.out_text, GROUPS=GROUPS,
+templates.env.globals.update(forum_entry_text=game.forum_entry_text, forum_entry_markup=game.forum_entry_markup, crest=game.crest, nl=game.nl, out_text=game.out_text, GROUPS=GROUPS,
                              RESULT_LABEL=game.RESULT_LABEL, BASE=game.BASE)
 
 
@@ -434,6 +434,15 @@ def delete_entry(request: Request, eid: int):
     require_admin(request)
     db.execute("DELETE FROM rtf_entries WHERE id = ?", (eid,))
     return RedirectResponse("/admin?msg=Speler+verwijderd.#players", 303)
+
+
+@app.get("/admin/entries/{eid}/forum", response_class=HTMLResponse)
+def entry_forum(request: Request, eid: int):
+    require_admin(request)
+    entry = db.one("SELECT * FROM rtf_entries WHERE id = ?", (eid,))
+    if not entry:
+        raise HTTPException(404)
+    return page(request, "done.html", state=State(), entry=entry, active_tab="admin", changed=False, pin_set=False, view_only=True)
 
 
 @app.get("/admin/entries/{eid}/edit")
