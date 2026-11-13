@@ -896,3 +896,13 @@ def forum_picks_table(state):
         out.append(f"[tr][td]{e['name']}[/td]" + "".join(f"[td]{c}[/td]" for c in cells) + "[/tr]")
     out.append("[/table]")
     return "\n".join(out)
+
+
+
+def forum_entry_markup(state, e):
+    """One player's six as a Hattrick forum table."""
+    rows = [f"[b]Road to the Final: keuze van {e['name']}[/b]", "[table]", "[tr][th]Groep[/th][th]Team[/th][/tr]"]
+    for i, g in enumerate(GROUPS):
+        rows.append(f"[tr][td]{g}[/td][td]{state.by_id[state.picks(e)[i]]['name']}[/td][/tr]")
+    rows.append("[/table]")
+    return "\n".join(rows)

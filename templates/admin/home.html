@@ -64,7 +64,8 @@
       <tr><td><b>{{ e.name }}</b></td>
         {% for tid in state.picks(e) %}{% set t = state.by_id[tid] %}{% set o = state.last_round and state.is_out(tid, state.last_round) %}
         <td class="{{ 'is-out' if o }}" style="font-size:.85rem"><div class="tm">{{ crest(t, o) }}<span>{{ t.name }}</span></div></td>{% endfor %}
-        <td><div class="row-actions" style="display:flex;gap:6px"><a class="btn sm" href="/admin/entries/{{ e.id }}/edit" style="text-decoration:none">Wijzigen</a>
+        <td><div class="row-actions" style="display:flex;gap:6px"><a class="btn sm" href="/admin/entries/{{ e.id }}/forum" style="text-decoration:none">Forumcode</a>
+          <a class="btn sm" href="/admin/entries/{{ e.id }}/edit" style="text-decoration:none">Wijzigen</a>
           <form method="post" action="/admin/entries/{{ e.id }}/delete" onsubmit="return confirm('{{ e.name|e }} verwijderen? Zijn of haar combinatie komt dan weer vrij.')"><button class="btn sm danger">Verwijderen</button></form></div></td></tr>
     {% endfor %}</tbody>
   </table></div>
