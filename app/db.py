@@ -89,7 +89,8 @@ DEFAULT_SETTINGS = {
     "match_mode": "1",
     "et_goals": "1",
     "pen_goals": "0",
-    "self_signup": "0",    # this year the organisers add every entry; players can't join or change picks
+    "self_signup": "0",
+    "seeded_season_85": "0",    # this year the organisers add every entry; players can't join or change picks
 }
 
 SCHEMA = [

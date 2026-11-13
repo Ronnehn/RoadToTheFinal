@@ -43,9 +43,33 @@ templates.env.globals.update(forum_entry_text=game.forum_entry_text, crest=game.
                              RESULT_LABEL=game.RESULT_LABEL, BASE=game.BASE)
 
 
+def seed_players_once():
+    """Add the season 85 players the first time the site starts with an empty game."""
+    if game.settings().get("seeded_season_85") == "1":
+        return
+    if db.one("SELECT id FROM rtf_entries LIMIT 1"):
+        game.set_setting("seeded_season_85", "1")
+        return
+    from .seed_players import SEASON_85
+    s = State()
+    added = 0
+    for r in game.parse_entries_text(SEASON_85, s):
+        if not r["ok"] or r.get("clash"):
+            continue
+        try:
+            db.execute(f"INSERT INTO rtf_entries (name, name_key, combo_key, {', '.join('g' + g for g in GROUPS)}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                       (r["name"][:40], game.norm(r["name"]), r["key"], *[r["picks"][g]["id"] for g in GROUPS]))
+            added += 1
+        except Exception:
+            pass
+    game.set_setting("seeded_season_85", "1")
+    print(f"Season 85: {added} players added.")
+
+
 @app.on_event("startup")
 def startup():
     db.init_db()
+    seed_players_once()
     if not admin_accounts():
         print("WARNING: no organiser accounts (set ADMIN_USERS or ADMIN_PASSWORD); the organiser login is disabled.")
 
