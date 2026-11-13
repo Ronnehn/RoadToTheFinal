@@ -1,28 +1,28 @@
   <div class="summary">
-    <div class="stat"><small>Leader</small><b>{{ rows[0].name if rows else '–' }}</b></div>
-    <div class="stat"><small>Lead</small><b class="num">{{ nl(rows[0].score - rows[1].score) if rows|length > 1 else '–' }}</b></div>
-    <div class="stat"><small>Players</small><b class="num">{{ rows|length }}</b></div>
-    <div class="stat"><small>Teams still in the cup</small><b class="num">{{ still_in }} / {{ state.teams|length }}</b></div>
+    <div class="stat"><small>Leider</small><b>{{ rows[0].name if rows else '–' }}</b></div>
+    <div class="stat"><small>Voorsprong</small><b class="num">{{ nl(rows[0].score - rows[1].score) if rows|length > 1 else '–' }}</b></div>
+    <div class="stat"><small>Spelers</small><b class="num">{{ rows|length }}</b></div>
+    <div class="stat"><small>Teams nog in de beker</small><b class="num">{{ still_in }} / {{ state.teams|length }}</b></div>
   </div>
 
   {% if ko_now or ko_before %}
   <div class="ko-banner" role="status">
     {% if ko_now %}
-    <b class="ko-title">Out of the cup in round {{ rnd }}</b>
+    <b class="ko-title">Uitgeschakeld in ronde {{ rnd }}</b>
     <ul>
       {% for t in ko_now %}{% set n = state.picked_by(t.id)|length %}
       <li><span class="tm">{{ crest(t, True) }}<span><b>{{ t.name }}</b> {{ out_text(state.outs[t.id]) }}.
-        <span class="ko-who">{% if n %}{{ n }} {{ 'player has' if n == 1 else 'players have' }} one team less scoring points from now on.{% else %}Nobody picked this team.{% endif %}</span></span></span></li>
+        <span class="ko-who">{% if n %}{{ n }} {{ 'speler heeft' if n == 1 else 'spelers hebben' }} vanaf nu een team minder dat punten scoort.{% else %}Niemand koos dit team.{% endif %}</span></span></span></li>
       {% endfor %}
     </ul>
     {% endif %}
-    {% if ko_before %}<p class="ko-earlier">Already out: {% for t in ko_before %}{{ t.name }} (round {{ state.outs[t.id].round }}){{ ', ' if not loop.last else '.' }}{% endfor %}</p>{% endif %}
-    <p class="ko-earlier">A knocked-out team keeps the average it had, but plays no more matches, so it earns nothing more.</p>
+    {% if ko_before %}<p class="ko-earlier">Al uitgeschakeld: {% for t in ko_before %}{{ t.name }} (ronde {{ state.outs[t.id].round }}){{ ', ' if not loop.last else '.' }}{% endfor %}</p>{% endif %}
+    <p class="ko-earlier">Een uitgeschakeld team houdt zijn gemiddelde, maar speelt niet meer en scoort dus geen punten meer.</p>
   </div>
   {% endif %}
 
-  <h2>Leaderboard after round {{ rnd }}</h2>
-  <p class="lead">Score = the average of your six teams' points per match (sum ÷ 6). Tap a player to see their teams.{% if prev_rank %} Arrows compare with round {{ rnd - 1 }}.{% endif %}</p>
+  <h2>Stand na ronde {{ rnd }}</h2>
+  <p class="lead">Score = het gemiddelde van de gemiddelden van je zes teams (som ÷ 6). Tik op een speler voor zijn teams.{% if prev_rank %} De pijlen vergelijken met ronde {{ rnd - 1 }}.{% endif %}</p>
   <div class="board">
     {% for e in rows %}
     {% set picks = state.picks(e) %}
@@ -32,11 +32,11 @@
     <details class="lb">
       <summary class="row p{{ e.rank }}">
         <span class="rank num">{{ e.rank }}</span>
-        {% if not pr %}<span class="move same">new</span>
+        {% if not pr %}<span class="move same">nieuw</span>
         {% elif pr > e.rank %}<span class="move up">▲{{ pr - e.rank }}</span>
         {% elif pr < e.rank %}<span class="move down">▼{{ e.rank - pr }}</span>
         {% else %}<span class="move same">–</span>{% endif %}
-        <span class="who"><b>{{ e.name }}</b><span><span class="left {{ 'short' if gone }}">{{ 6 - gone|length }}/6 still in</span>{% if gone %} · out: {% for t in gone %}{{ state.by_id[t].name }}{{ ', ' if not loop.last }}{% endfor %}{% endif %}</span></span>
+        <span class="who"><b>{{ e.name }}</b><span><span class="left {{ 'short' if gone }}">{{ 6 - gone|length }}/6 nog in</span>{% if gone %} · uit: {% for t in gone %}{{ state.by_id[t].name }}{{ ', ' if not loop.last }}{% endfor %}{% endif %}</span></span>
         <span class="crests">{% for t in picks %}{{ crest(state.by_id[t], state.is_out(t, rnd)) }}{% endfor %}</span>
         <span class="pts num">{{ nl(e.score) }}{% if e.id in prev_score %}{% set d = e.score - prev_score[e.id] %}<small style="color:var({{ '--down' if d < 0 else '--up' }})">{{ '' if d < 0 else '+' }}{{ nl(d) }}</small>{% endif %}</span>
       </summary>
@@ -44,13 +44,13 @@
         {% for g in GROUPS %}{% set t = state.by_id[picks[loop.index0]] %}{% set o = state.outs.get(t.id) if state.is_out(t.id, rnd) else None %}
         <tr class="{{ 'is-out' if o }}">
           <td><span class="poule-tag">{{ g }}</span></td>
-          <td><div class="tm">{{ crest(t, o is not none) }}<span>{{ t.name }}{% if o %}<br><span class="out-note">Out of the cup in round {{ o.round }}: {{ out_text(o) }}. Average frozen.</span>{% endif %}</span></div></td>
+          <td><div class="tm">{{ crest(t, o is not none) }}<span>{{ t.name }}{% if o %}<br><span class="out-note">Uitgeschakeld in ronde {{ o.round }}: {{ out_text(o) }}. Gemiddelde staat vast.</span>{% endif %}</span></div></td>
           <td class="r num">{% if (rnd - 1) in state.rounds and not (o and o.round < rnd) %}{% set tg = state.rounds[rnd][t.id] - state.rounds[rnd - 1].get(t.id, 0) %}{{ '' if tg < 0 else '+' }}{{ nl(tg) }}{% elif o %}—{% endif %}</td>
           <td class="r num"><b>{{ nl(state.rounds[rnd].get(t.id, 0)) }}</b></td>
         </tr>
         {% endfor %}
         {% set ns = namespace(total=0) %}{% for t in picks %}{% set ns.total = ns.total + state.rounds[rnd].get(t, 0) %}{% endfor %}
-        <tr class="sumrow"><td></td><td><b>Score</b> = sum of the 6 averages ÷ 6</td>
+        <tr class="sumrow"><td></td><td><b>Score</b> = som van de 6 gemiddelden ÷ 6</td>
           <td class="r num">{{ nl(ns.total) }} ÷ 6</td><td class="r num"><b>= {{ nl(ns.total / 6) }}</b></td></tr>
       </table></div>
     </details>

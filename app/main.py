@@ -39,7 +39,7 @@ app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, same_site="lax", https_only=ON_RENDER, max_age=60 * 60 * 12)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
-templates.env.globals.update(crest=game.crest, nl=game.nl, out_text=game.out_text, GROUPS=GROUPS,
+templates.env.globals.update(forum_entry_text=game.forum_entry_text, crest=game.crest, nl=game.nl, out_text=game.out_text, GROUPS=GROUPS,
                              RESULT_LABEL=game.RESULT_LABEL, BASE=game.BASE)
 
 
@@ -140,8 +140,8 @@ def editing_entry(request):
 @app.get("/pick", response_class=HTMLResponse)
 def pick_form(request: Request):
     if not game.self_signup() and not is_admin(request):
-        return page(request, "message.html", title="Entries are added by the organisers",
-                    text="This year the organisers enter everyone's six teams. Post your picks in the forum topic; you'll see them here after the deadline.")
+        return page(request, "message.html", title="De organisatie voert alle inzendingen in",
+                    text="Dit jaar voert de organisatie ieders zes teams in. Zet je keuze in het forumtopic; na de deadline zie je hem hier terug.")
     s = State()
     e = editing_entry(request)
     form = {"name": e["name"], **{f"g{g}": e[f"g{g}"] for g in GROUPS}} if e else {}
@@ -175,14 +175,14 @@ async def change_login(request: Request):
     now = time.time()
     recent = [t for t in _pin_fails.get(ip, []) if now - t < 600]
     if not game.picks_open():
-        return page(request, "change.html", active_tab="pick", error=f"Picks closed on {game.deadline_label()}.", name=name)
+        return page(request, "change.html", active_tab="pick", error=f"Inschrijven is gesloten sinds {game.deadline_label()}.", name=name)
     if len(recent) >= 8:
-        return page(request, "change.html", active_tab="pick", error="Too many wrong tries. Wait 10 minutes.", name=name)
+        return page(request, "change.html", active_tab="pick", error="Te vaak fout geprobeerd. Wacht 10 minuten.", name=name)
     e = db.one("SELECT * FROM rtf_entries WHERE name_key = ?", (game.norm(name),))
     if not e or not game.check_pin(pin, e.get("pin_hash")):
         _pin_fails[ip] = recent + [now]
         time.sleep(1)
-        msg = "Name or PIN is wrong." if not e or e.get("pin_hash") else "This entry has no PIN. Ask the organiser to change it for you."
+        msg = "Naam of pincode klopt niet." if not e or e.get("pin_hash") else "Deze inzending heeft geen pincode. Vraag de organisatie om hem aan te passen."
         return page(request, "change.html", active_tab="pick", error=msg, name=name)
     request.session["entry"] = e["id"]
     return RedirectResponse("/pick", 303)
@@ -231,7 +231,7 @@ async def api_random(request: Request):
         picks = {g: keep.get(g) or random.choice(options[g]) for g in GROUPS}
         if game.combo_key([picks[g] for g in GROUPS]) not in taken:
             return JSONResponse({"picks": picks})
-    return JSONResponse({"error": "No free combination left with the teams you kept. Clear a group and try again."}, status_code=409)
+    return JSONResponse({"error": "Met de teams die je al koos is geen vrije combinatie meer over. Maak een groep leeg en probeer opnieuw."}, status_code=409)
 
 
 _recent_posts: dict[str, list[float]] = {}
@@ -265,27 +265,27 @@ async def pick_submit(request: Request):
         return page(request, "pick.html", error=msg, status_code=400, **{**ctx, "avail": avail})
 
     if len(recent) >= 10:
-        return fail("Too many attempts from this connection. Wait a minute and try again.")
+        return fail("Te veel pogingen vanaf deze verbinding. Wacht een minuut en probeer opnieuw.")
     _recent_posts[ip] = recent + [now]
     if not game.picks_open() and not is_admin(request):
-        return fail(f"Picks closed on {game.deadline_label()}.")
+        return fail(f"Inschrijven is gesloten sinds {game.deadline_label()}.")
     if len(name) < 2:
-        return fail("Enter your name (at least 2 characters).")
+        return fail("Vul een naam in (minstens 2 tekens).")
     if len(picks) < 6:
-        return fail("Pick one team in every group.")
+        return fail("Kies in elke groep één team.")
     if any(s.is_out(t, s.last_round) for t in picks.values()):
-        return fail("One of your teams is already out of the cup. Pick another one.")
+        return fail("Een van de teams ligt al uit de beker. Kies een ander team.")
     clash = db.one("SELECT id FROM rtf_entries WHERE name_key = ?", (game.norm(name),))
     if clash and (not editing or clash["id"] != editing["id"]):
-        return fail(f"The name “{name}” is already in the game. Use your full name or add your Hattrick team name.")
+        return fail(f"De naam “{name}” doet al mee. Gebruik een andere naam of voeg je Hattrick-teamnaam toe.")
     if not editing and not is_admin(request) and not (pin.isdigit() and 4 <= len(pin) <= 8):
-        return fail("Choose a PIN of 4 to 8 digits. You need it to change your teams before the deadline.")
+        return fail("Kies een pincode van 4 tot 8 cijfers. Die heb je nodig om je teams voor de deadline te wijzigen.")
     if pin and not (pin.isdigit() and 4 <= len(pin) <= 8):
-        return fail("A PIN must be 4 to 8 digits.")
+        return fail("Een pincode bestaat uit 4 tot 8 cijfers.")
     key = game.combo_key([picks[g] for g in GROUPS])
     avail = game.availability(s, picks, editing["combo_key"] if editing else None)
     if not avail["free"]:
-        return fail("Someone already has exactly these six teams. Swap one team for one of the options below.", avail)
+        return fail("Iemand heeft precies deze zes teams al. Wissel één team voor een van de opties hieronder.", avail)
     if editing:
         try:
             sets = ", ".join(f"g{g} = ?" for g in GROUPS)
@@ -296,7 +296,7 @@ async def pick_submit(request: Request):
                 params.append(game.hash_pin(pin))
             db.execute(f"UPDATE rtf_entries SET name = ?, name_key = ?, combo_key = ?, {sets}{extra} WHERE id = ?", (*params, editing["id"]))
         except Exception:
-            return fail("Someone submitted exactly these six teams a moment ago. Swap one team.",
+            return fail("Iemand stuurde net precies deze zes teams in. Wissel één team.",
                         game.availability(State(), picks, editing["combo_key"]))
         request.session.pop("entry", None)
         entry = db.one("SELECT * FROM rtf_entries WHERE id = ?", (editing["id"],))
@@ -307,8 +307,8 @@ async def pick_submit(request: Request):
     except Exception as e:  # UNIQUE constraint: someone submitted the same name or six a moment ago
         msg = str(e).lower()
         if "name_key" in msg:
-            return fail(f"The name “{name}” was just taken. Use another name.")
-        return fail("Someone submitted exactly these six teams a moment ago. Swap one team for one of the options below.",
+            return fail(f"De naam “{name}” is net bezet. Gebruik een andere naam.")
+        return fail("Iemand stuurde net precies deze zes teams in. Wissel één team voor een van de opties hieronder.",
                     game.availability(State(), picks))
     entry = db.one("SELECT * FROM rtf_entries WHERE combo_key = ?", (key,))
     return page(request, "done.html", state=State(), entry=entry, active_tab="pick", changed=False, pin_set=bool(pin))
@@ -330,7 +330,7 @@ def health():
 
 @app.exception_handler(404)
 async def not_found(request: Request, exc):
-    return page(request, "message.html", status_code=404, title="Not found", text="This page doesn't exist.")
+    return page(request, "message.html", status_code=404, title="Niet gevonden", text="Deze pagina bestaat niet.")
 
 
 # ---------------- organiser ----------------
@@ -354,7 +354,7 @@ async def login(request: Request):
     now = time.time()
     recent = [t for t in _fails.get(ip, []) if now - t < 600]
     if len(recent) >= 5:
-        return page(request, "admin/login.html", error="Too many attempts. Try again in 10 minutes.")
+        return page(request, "admin/login.html", error="Te veel pogingen. Probeer het over 10 minuten opnieuw.")
     accounts = admin_accounts()
     user = (form.get("username") or "").strip().lower()
     expected = accounts.get(user, "")
@@ -362,7 +362,7 @@ async def login(request: Request):
     if not ok:
         _fails[ip] = recent + [now]
         time.sleep(1)
-        return page(request, "admin/login.html", error="No organiser accounts are set on the server." if not accounts else "Wrong username or password.")
+        return page(request, "admin/login.html", error="Er zijn geen organisatie-accounts ingesteld op de server." if not accounts else "Gebruikersnaam of wachtwoord klopt niet.")
     request.session["admin"] = True
     request.session["admin_user"] = user
     return RedirectResponse("/admin", 303)
@@ -390,7 +390,7 @@ async def admin_settings(request: Request):
         datetime.fromisoformat(dl)
         game.set_setting("deadline", dl[:16])
     except ValueError:
-        return RedirectResponse("/admin?msg=That+deadline+is+not+a+valid+date.", 303)
+        return RedirectResponse("/admin?msg=Die+deadline+is+geen+geldige+datum.", 303)
     game.set_setting("et_goals", "1" if form.get("et_goals") else "0")
     game.set_setting("self_signup", "1" if form.get("self_signup") else "0")
     import json
@@ -402,14 +402,14 @@ async def admin_settings(request: Request):
     if table:
         game.set_setting("points_table", json.dumps(table))
     game.set_setting("pen_goals", "1" if form.get("pen_goals") else "0")
-    return RedirectResponse("/admin?msg=Settings+saved.", 303)
+    return RedirectResponse("/admin?msg=Instellingen+opgeslagen.", 303)
 
 
 @app.post("/admin/entries/{eid}/delete")
 def delete_entry(request: Request, eid: int):
     require_admin(request)
     db.execute("DELETE FROM rtf_entries WHERE id = ?", (eid,))
-    return RedirectResponse("/admin?msg=Player+removed.#players", 303)
+    return RedirectResponse("/admin?msg=Speler+verwijderd.#players", 303)
 
 
 @app.get("/admin/entries/{eid}/edit")
@@ -425,7 +425,18 @@ def forum(request: Request):
     s = State()
     rnd = pick_round(s, request)
     players, teams, kos = game.forum_tables(s, rnd) if rnd else ("", "", "")
-    return page(request, "admin/forum.html", state=s, rnd=rnd, players=players, teams=teams, kos=kos, active_tab="forum")
+    picks = game.forum_picks_table(s) if s.entries else ""
+    return page(request, "admin/forum.html", state=s, rnd=rnd, players=players, teams=teams, kos=kos, picks=picks, active_tab="forum")
+
+
+@app.get("/admin/export.xlsx")
+def export_xlsx(request: Request):
+    require_admin(request)
+    s = State()
+    data = game.build_workbook(s)
+    name = f"road_to_the_final_ronde_{s.last_round or 0}.xlsx"
+    return Response(content=data, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": f'attachment; filename="{name}"', "Cache-Control": "no-store"})
 
 
 @app.get("/admin/import", response_class=HTMLResponse)
@@ -475,11 +486,11 @@ async def update_team(request: Request, tid: int):
             fid = db.execute("INSERT INTO rtf_files (filename, content_type, data) VALUES (?, ?, ?)", (up.filename, ctype, data))
             db.execute("UPDATE rtf_teams SET logo_id = ? WHERE id = ?", (fid, tid))
         else:
-            return RedirectResponse("/admin?msg=Logo+must+be+a+PNG,+JPG,+WebP+or+GIF+under+2+MB.#teams", 303)
+            return RedirectResponse("/admin?msg=Een+logo+moet+een+PNG,+JPG,+WebP+of+GIF+onder+2+MB+zijn.#teams", 303)
     if form.get("remove_logo"):
         db.execute("UPDATE rtf_teams SET logo_id = NULL WHERE id = ?", (tid,))
     db.execute("DELETE FROM rtf_files WHERE id NOT IN (SELECT logo_id FROM rtf_teams WHERE logo_id IS NOT NULL)")
-    return RedirectResponse("/admin?msg=Team+saved.#teams", 303)
+    return RedirectResponse("/admin?msg=Team+opgeslagen.#teams", 303)
 
 
 @app.post("/admin/rounds/{rnd}/delete")
@@ -487,10 +498,10 @@ def delete_round(request: Request, rnd: int):
     require_admin(request)
     s = State()
     if rnd != s.last_round:
-        return RedirectResponse("/admin?msg=Only+the+latest+round+can+be+removed.", 303)
+        return RedirectResponse("/admin?msg=Alleen+de+laatste+ronde+kan+worden+verwijderd.", 303)
     db.execute_many([("DELETE FROM rtf_rounds WHERE round = ?", (rnd,)), ("DELETE FROM rtf_outs WHERE round = ?", (rnd,)),
                      ("DELETE FROM rtf_matches WHERE round = ?", (rnd,))])
-    return RedirectResponse(f"/admin?msg=Round+{rnd}+removed.", 303)
+    return RedirectResponse(f"/admin?msg=Ronde+{rnd}+verwijderd.", 303)
 
 
 # ---- results ----
@@ -515,11 +526,11 @@ async def results_read(request: Request):
     parsed = game.parse_standings(text, s)
     problems = []
     if not game.base_table().get(parsed["round"]):
-        problems.append(f"The points table only goes up to round {game.MAX_ROUNDS}.")
+        problems.append(f"De puntentabel gaat tot ronde {game.MAX_ROUNDS}.")
     if s.round_list and parsed["prev"] is None and parsed["round"] != s.round_list[0]:
-        problems.append(f"There is no round {parsed['round'] - 1} yet. Enter the rounds in order.")
+        problems.append(f"Ronde {parsed['round'] - 1} is er nog niet. Voer de rondes op volgorde in.")
     if parsed["missing"]:
-        problems.append("Missing teams that are still in the cup: " + ", ".join(t["name"] for t in parsed["missing"]) + ".")
+        problems.append("Deze teams liggen nog in de beker maar ontbreken: " + ", ".join(t["name"] for t in parsed["missing"]) + ".")
     parsed["problems"] = problems
     return page(request, "admin/results.html", state=s, settings=game.settings(), mode="paste", parsed=parsed, text=text,
                 errors={}, rows=None, next_round=s.last_round + 1 if s.last_round else 1)
@@ -532,7 +543,7 @@ async def results_publish(request: Request):
     s = State()
     parsed = game.parse_standings(form.get("text") or "", s)
     if parsed["missing"] or not game.base_table().get(parsed["round"]):
-        return RedirectResponse("/admin/results?msg=Read+the+results+again.", 303)
+        return RedirectResponse("/admin/results?msg=Lees+de+uitslagen+opnieuw+in.", 303)
     outs = {}
     for t in parsed["active"]:
         if form.get(f"ko_{t['id']}"):

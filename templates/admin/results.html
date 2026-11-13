@@ -1,38 +1,38 @@
 {% extends "base.html" %}
-{% block title %}Enter results · Road to the Final{% endblock %}
+{% block title %}Uitslagen invoeren · Road to the Final{% endblock %}
 {% block content %}
-<h2>Enter this week's results</h2>
-<p class="lead">{% if mode == 'matches' %}Paste or type this week's match scores (round {{ next_round }}). The site works out every team's points with the points table, updates the averages and knocks out every team that lost.{% else %}Alternative: if you already have each team's average points (positie / team / punten), paste that list instead and tick who got knocked out.{% endif %}</p>
+<h2>Uitslagen van deze week</h2>
+<p class="lead">{% if mode == 'matches' %}Plak of typ de uitslagen van deze week (ronde {{ next_round }}). De site rekent met de puntentabel de punten per team uit, werkt de gemiddelden bij en schakelt elk team uit dat verloor.{% else %}Alternatief: heb je al het gemiddelde per team (positie / team / punten), plak dan die lijst en vink aan wie er is uitgeschakeld.{% endif %}</p>
 
 <div class="seg" role="tablist">
-  <a role="tab" class="segbtn" aria-selected="{{ 'true' if mode == 'matches' else 'false' }}" href="/admin/results?mode=matches">Match scores</a>
-  <a role="tab" class="segbtn" aria-selected="{{ 'true' if mode == 'paste' else 'false' }}" href="/admin/results?mode=paste">Team averages (alternative)</a>
+  <a role="tab" class="segbtn" aria-selected="{{ 'true' if mode == 'matches' else 'false' }}" href="/admin/results?mode=matches">Uitslagen</a>
+  <a role="tab" class="segbtn" aria-selected="{{ 'true' if mode == 'paste' else 'false' }}" href="/admin/results?mode=paste">Gemiddelden per team (alternatief)</a>
 </div>
 
 {% if mode == 'paste' %}
 <form method="post" action="/admin/results/read">
-  <textarea name="text" spellcheck="false" aria-label="Paste results" placeholder="Teams na ronde 14:&#10;&#10;positie	team	punten&#10;1	# The Fighting Hyenas	50504,14&#10;…">{{ text }}</textarea>
-  <div class="btnrow"><button class="btn primary">Read results</button></div>
+  <textarea name="text" spellcheck="false" aria-label="Stand plakken" placeholder="Teams na ronde 14:&#10;&#10;positie	team	punten&#10;1	# The Fighting Hyenas	50504,14&#10;…">{{ text }}</textarea>
+  <div class="btnrow"><button class="btn primary">Inlezen</button></div>
 </form>
 
 {% if parsed %}
 <form class="preview" method="post" action="/admin/results/publish">
   <input type="hidden" name="text" value="{{ text }}">
-  <p><b>Round {{ parsed.round }}</b>: <span class="{{ 'warn' if parsed.missing else 'okc' }}">{{ parsed.active|length - parsed.missing|length }} of {{ parsed.active|length }} teams still in the cup recognised</span>.
-  {% if parsed.unknown %}<br><span class="warn">Not recognised:</span> {{ parsed.unknown|join(', ') }} <span class="hint">(fine if these aren't in the game; otherwise fix the team name under Organiser → Teams)</span>{% endif %}
+  <p><b>Ronde {{ parsed.round }}</b>: <span class="{{ 'warn' if parsed.missing else 'okc' }}">{{ parsed.active|length - parsed.missing|length }} van de {{ parsed.active|length }} teams die nog in de beker liggen herkend</span>.
+  {% if parsed.unknown %}<br><span class="warn">Niet herkend:</span> {{ parsed.unknown|join(', ') }} <span class="hint">(geen probleem als deze teams niet meedoen; anders de teamnaam aanpassen bij Organisatie → Teams)</span>{% endif %}
   {% for p in parsed.problems %}<br><span class="warn">{{ p }}</span>{% endfor %}
-  {% if parsed.round in state.rounds %}<br><span class="warn">Round {{ parsed.round }} already exists and will be replaced.</span>{% endif %}</p>
+  {% if parsed.round in state.rounds %}<br><span class="warn">Ronde {{ parsed.round }} bestaat al en wordt vervangen.</span>{% endif %}</p>
   {% if not parsed.problems %}
-  <h3 class="subhead">Who got knocked out this round?</h3>
-  <p class="hint">Tick every team that lost its cup match. Players who picked it will see they have one team less from now on.</p>
+  <h3 class="subhead">Wie is er deze ronde uitgeschakeld?</h3>
+  <p class="hint">Vink elk team aan dat zijn bekerwedstrijd verloor. Spelers met dat team zien dat ze vanaf nu een team minder hebben.</p>
   <div class="kolist">{% for t in parsed.active %}
     <div class="korow">
       <label class="tm" for="ko_{{ t.id }}"><input type="checkbox" id="ko_{{ t.id }}" name="ko_{{ t.id }}">{{ crest(t) }}<span>{{ t.name }}</span></label>
-      <select name="kohow_{{ t.id }}" aria-label="How {{ t.name }} lost"><option value="regular">Lost in regular time</option><option value="extra">Lost after extra time</option><option value="penalties">Lost on penalties</option></select>
-      <input name="koopp_{{ t.id }}" placeholder="Lost to (optional)" aria-label="Opponent of {{ t.name }}">
+      <select name="kohow_{{ t.id }}" aria-label="Hoe {{ t.name }} verloor"><option value="regular">Verloor in de reguliere speeltijd</option><option value="extra">Verloor na verlenging</option><option value="penalties">Verloor na strafschoppen</option></select>
+      <input name="koopp_{{ t.id }}" placeholder="Verloor van (optioneel)" aria-label="Tegenstander van {{ t.name }}">
     </div>{% endfor %}
   </div>
-  <button class="btn primary">Publish round {{ parsed.round }}</button>
+  <button class="btn primary">Ronde {{ parsed.round }} publiceren</button>
   {% endif %}
 </form>
 {% endif %}
@@ -41,21 +41,21 @@
 {% set prev = next_round - 1 if (next_round - 1) in state.rounds else None %}
 {% set active = state.active_after(prev) if prev else state.teams %}
 {% if next_round not in BASE %}
-<p class="warn">The points table only goes up to round 20, so there is nothing more to enter.</p>
+<p class="warn">De puntentabel gaat tot ronde 20, dus er valt niets meer in te voeren.</p>
 {% else %}
 <form method="post" action="/admin/results/paste-matches" class="panel">
-  <h2 style="margin-top:0">Paste all results at once</h2>
-  <p class="hint">One match per line, for example <code>The Fighting Hyenas 2-1 FC Xelcius</code>, <code>A.I. - Revival 1-1 (ns 4-3)</code> or <code>De Remmies 3-2 FCMF nv</code>. Lines without one of our teams are skipped. The lines below get filled in; check them and click Publish.</p>
-  <textarea name="text" spellcheck="false" aria-label="Paste match results" style="min-height:150px">{{ paste_text if paste_text is defined else '' }}</textarea>
-  <div class="btnrow"><button class="btn primary">Read results</button></div>
+  <h2 style="margin-top:0">Alle uitslagen in één keer plakken</h2>
+  <p class="hint">Eén wedstrijd per regel, bijvoorbeeld <code>The Fighting Hyenas 2-1 FC Xelcius</code>, <code>A.I. - Revival 1-1 (ns 4-3)</code> of <code>De Remmies 3-2 FCMF nv</code>. Regels zonder een van onze teams worden overgeslagen. De regels hieronder worden ingevuld; controleer ze en klik op Publiceren.</p>
+  <textarea name="text" spellcheck="false" aria-label="Uitslagen plakken" style="min-height:150px">{{ paste_text if paste_text is defined else '' }}</textarea>
+  <div class="btnrow"><button class="btn primary">Inlezen</button></div>
   {% if paste_report is defined and paste_report %}
-  <p style="margin:10px 0 0"><span class="{{ 'okc' if not paste_report.missing else 'warn' }}">{{ paste_report.read }} teams filled in.</span>
-    {% if paste_report.missing %}<br><span class="warn">No result found for:</span> {{ paste_report.missing|join(', ') }}{% endif %}
-    {% if paste_report.unread %}<br><span class="warn">Couldn't read:</span> {{ paste_report.unread|join(' · ') }}{% endif %}
+  <p style="margin:10px 0 0"><span class="{{ 'okc' if not paste_report.missing else 'warn' }}">{{ paste_report.read }} teams ingevuld.</span>
+    {% if paste_report.missing %}<br><span class="warn">Geen uitslag gevonden voor:</span> {{ paste_report.missing|join(', ') }}{% endif %}
+    {% if paste_report.unread %}<br><span class="warn">Niet te lezen:</span> {{ paste_report.unread|join(' · ') }}{% endif %}
     {% for n in paste_report.notes %}<br><span class="hint">{{ n }}</span>{% endfor %}</p>
   {% endif %}
 </form>
-<p class="hint">Enter the final score (after extra time if it went that far). Points for round {{ next_round }}: win {{ nl(BASE[next_round], 0) }}, goals +501 for and −500 against. {{ 'Extra-time goals count.' if settings.et_goals == '1' else "Extra-time goals don't count: fill in how many were scored in extra time." }} {{ 'Shootout goals count.' if settings.pen_goals == '1' else "Shootout goals don't count." }}</p>
+<p class="hint">Vul de eindstand in (na verlenging als die gespeeld is). Punten in ronde {{ next_round }}: winst {{ nl(BASE[next_round], 0) }}, doelpunten +501 voor en −500 tegen. {{ 'Doelpunten in de verlenging tellen mee.' if settings.et_goals == '1' else 'Doelpunten in de verlenging tellen niet mee: vul in hoeveel er in de verlenging vielen.' }} {{ 'Benutte strafschoppen tellen mee.' if settings.pen_goals == '1' else 'Strafschoppen in de shoot-out tellen niet mee.' }}</p>
 <form method="post" action="/admin/results/matches" id="matchForm"
       data-round="{{ next_round }}" data-base="{{ BASE[next_round] }}" data-et="{{ settings.et_goals }}" data-pen="{{ settings.pen_goals }}">
   <datalist id="teamNames">{% for t in state.teams %}<option value="{{ t.name }}">{% endfor %}</datalist>
@@ -64,31 +64,31 @@
     <div class="mrow" data-id="{{ t.id }}" data-avg="{{ state.rounds[prev][t.id] if prev else 0 }}" data-played="{{ state.played[prev][t.id] if prev else 0 }}" data-name="{{ t.name }}">
       <div class="tm">{{ crest(t) }}<b>{{ t.name }}</b></div>
       <div class="mfields">
-        <input class="score" type="number" min="0" name="gf_{{ t.id }}" value="{{ r.gf if r.gf is not none else '' }}" aria-label="Goals {{ t.name }}">
+        <input class="score" type="number" min="0" name="gf_{{ t.id }}" value="{{ r.gf if r.gf is not none else '' }}" aria-label="Doelpunten {{ t.name }}">
         <span>–</span>
-        <input class="score" type="number" min="0" name="ga_{{ t.id }}" value="{{ r.ga if r.ga is not none else '' }}" aria-label="Goals opponent">
-        <input class="opp" list="teamNames" name="opp_{{ t.id }}" value="{{ r.opp or '' }}" placeholder="vs opponent" aria-label="Opponent of {{ t.name }}">
-        <select name="dec_{{ t.id }}" aria-label="How it was decided">
-          <option value="regular" {{ 'selected' if r.dec == 'regular' }}>Regular time</option>
-          <option value="extra" {{ 'selected' if r.dec == 'extra' }}>After extra time</option>
-          <option value="penalties" {{ 'selected' if r.dec == 'penalties' }}>Penalties</option>
+        <input class="score" type="number" min="0" name="ga_{{ t.id }}" value="{{ r.ga if r.ga is not none else '' }}" aria-label="Doelpunten tegenstander">
+        <input class="opp" list="teamNames" name="opp_{{ t.id }}" value="{{ r.opp or '' }}" placeholder="tegen" aria-label="Tegenstander van {{ t.name }}">
+        <select name="dec_{{ t.id }}" aria-label="Hoe de wedstrijd beslist werd">
+          <option value="regular" {{ 'selected' if r.dec == 'regular' }}>Reguliere speeltijd</option>
+          <option value="extra" {{ 'selected' if r.dec == 'extra' }}>Na verlenging</option>
+          <option value="penalties" {{ 'selected' if r.dec == 'penalties' }}>Na strafschoppen</option>
         </select>
-        <label class="mini et" {{ 'hidden' if settings.et_goals == '1' or r.dec not in ('extra', 'penalties') }}>Extra-time goals <input type="number" min="0" name="etf_{{ t.id }}" value="{{ r.etf if r.etf is not none else '' }}" aria-label="Extra-time goals for">–<input type="number" min="0" name="eta_{{ t.id }}" value="{{ r.eta if r.eta is not none else '' }}" aria-label="Extra-time goals against"></label>
-        <label class="mini pen" {{ 'hidden' if r.dec != 'penalties' }}>Shootout <input type="number" min="0" name="pf_{{ t.id }}" value="{{ r.pf if r.pf is not none else '' }}" aria-label="Shootout goals for">–<input type="number" min="0" name="pa_{{ t.id }}" value="{{ r.pa if r.pa is not none else '' }}" aria-label="Shootout goals against"></label>
+        <label class="mini et" {{ 'hidden' if settings.et_goals == '1' or r.dec not in ('extra', 'penalties') }}>Doelpunten in verlenging <input type="number" min="0" name="etf_{{ t.id }}" value="{{ r.etf if r.etf is not none else '' }}" aria-label="Doelpunten voor in verlenging">–<input type="number" min="0" name="eta_{{ t.id }}" value="{{ r.eta if r.eta is not none else '' }}" aria-label="Doelpunten tegen in verlenging"></label>
+        <label class="mini pen" {{ 'hidden' if r.dec != 'penalties' }}>Strafschoppen <input type="number" min="0" name="pf_{{ t.id }}" value="{{ r.pf if r.pf is not none else '' }}" aria-label="Benutte strafschoppen voor">–<input type="number" min="0" name="pa_{{ t.id }}" value="{{ r.pa if r.pa is not none else '' }}" aria-label="Benutte strafschoppen tegen"></label>
       </div>
       <div class="mprev"></div>
       {% if errors.get(t.id) %}<div class="err-line">{{ errors[t.id] }}</div>{% endif %}
     </div>
     {% endfor %}
   </div>
-  <div class="btnrow"><button class="btn primary" id="publishMatches">Publish round {{ next_round }}</button></div>
+  <div class="btnrow"><button class="btn primary" id="publishMatches">Ronde {{ next_round }} publiceren</button></div>
 </form>
 {% endif %}
 {% endif %}
 
 <div class="rules">
-  <div class="rule"><b>Scoring</b>Each match earns points by round and result plus 501 per goal scored and −500 per goal conceded. A team's points are its average per match. A player's score is their six averages ÷ 6.</div>
-  <div class="rule"><b>Knocked out</b>A team that loses, in regular time, after extra time or on penalties, is out. It keeps its average but earns nothing more.</div>
+  <div class="rule"><b>Puntentelling</b>Elke wedstrijd levert punten op volgens de ronde en de uitslag, plus 501 per doelpunt voor en −500 per doelpunt tegen. Een team scoort zijn gemiddelde per gespeelde wedstrijd. De score van een speler is de som van zijn zes gemiddelden ÷ 6.</div>
+  <div class="rule"><b>Uitgeschakeld</b>Een team dat verliest, in de reguliere speeltijd, na verlenging of na strafschoppen, ligt uit de beker. Het houdt zijn gemiddelde, maar scoort geen punten meer.</div>
 </div>
 {% endblock %}
 

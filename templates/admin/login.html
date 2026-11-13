@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Organiser login · Road to the Final{% endblock %}
+{% block title %}Inloggen organisatie · Road to the Final{% endblock %}
 {% block content %}
 <form class="panel login" method="post" action="/admin/login">
-  <h2>Organiser login</h2>
+  <h2>Inloggen organisatie</h2>
   {% if error %}<div class="err">{{ error }}</div>{% endif %}
-  <div class="field"><label for="u">Username</label><input id="u" name="username" autocomplete="username" required autofocus></div>
-  <div class="field"><label for="p">Password</label><input id="p" type="password" name="password" autocomplete="current-password" required></div>
-  <button class="btn primary" type="submit" style="width:100%">Log in</button>
+  <div class="field"><label for="u">Gebruikersnaam</label><input id="u" name="username" autocomplete="username" required autofocus></div>
+  <div class="field"><label for="p">Wachtwoord</label><input id="p" type="password" name="password" autocomplete="current-password" required></div>
+  <button class="btn primary" type="submit" style="width:100%">Inloggen</button>
 </form>
 {% endblock %}

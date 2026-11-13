@@ -1,32 +1,32 @@
 {% extends "base.html" %}
-{% block title %}Make your pick · Road to the Final{% endblock %}
+{% block title %}Teams kiezen · Road to the Final{% endblock %}
 {% block content %}
 {% if not picks_open and not is_admin %}
-  <h2>Picks are closed</h2>
-  <p class="lead">The deadline was {{ deadline_label }}. Follow the game on the <a href="/">leaderboard</a>.</p>
+  <h2>De inschrijving is gesloten</h2>
+  <p class="lead">De deadline was {{ deadline_label }}. Volg het spel via de <a href="/">stand</a>.</p>
 {% else %}
   {% if editing %}
-  <h2>Change your six, {{ editing.name }}</h2>
-  <p class="lead">You can change your teams until {{ deadline_label }}, as long as nobody else has the exact same six. Your current teams are selected. <a href="/pick/new">Cancel</a></p>
+  <h2>Teams wijzigen: {{ editing.name }}</h2>
+  <p class="lead">Wijzigen kan tot {{ deadline_label }}, zolang niemand anders precies dezelfde zes teams heeft. De huidige teams staan aangevinkt. <a href="/pick/new">Annuleren</a></p>
   {% else %}
-  <h2>Make your pick</h2>
-  <p class="lead">Choose one team from each of the six groups. Every player needs a different set of six. If it's already taken, you'll see which teams can be swapped in to make it unique.{% if self_signup %} You can change your teams until the deadline with your PIN. Already joined? <a href="/pick/change">Change my teams</a>{% endif %}</p>
+  <h2>Teams kiezen</h2>
+  <p class="lead">Kies uit elk van de zes groepen één team. Elke speler heeft een andere combinatie van zes. Is die al bezet, dan zie je welke teams je kunt wisselen om hem uniek te maken.{% if self_signup %} Met je pincode kun je je teams tot de deadline wijzigen. Al ingeschreven? <a href="/pick/change">Mijn teams wijzigen</a>{% endif %}</p>
   {% endif %}
-  {% if is_admin %}<div class="notice">Organiser: {% if editing %}you're editing {{ editing.name }}'s entry.{% else %}you're adding a player{% if not picks_open %} after the deadline{% endif %}. The PIN is optional; without one only you can change the entry.{% endif %}</div>{% endif %}
+  {% if is_admin %}<div class="notice">Organisatie: {% if editing %}je wijzigt de inzending van {{ editing.name }}.{% else %}je voegt een speler toe{% if not picks_open %} na de deadline{% endif %}.{% if self_signup %} De pincode is optioneel; zonder pincode kan alleen de organisatie de inzending wijzigen.{% endif %}{% endif %}</div>{% endif %}
   {% if error %}<div class="err" role="alert">{{ error }}</div>{% endif %}
 
   <form method="post" action="/pick" id="pickForm">
     <div class="poules">
       {% for g in GROUPS %}
       <fieldset class="poule" data-g="{{ g }}" style="margin:0">
-        <legend class="sr">Group {{ g }}</legend>
-        <h3>Group {{ g }} <small class="gstate">pick 1</small></h3>
+        <legend class="sr">Groep {{ g }}</legend>
+        <h3>Groep {{ g }} <small class="gstate">kies 1</small></h3>
         {% for t in state.teams if t.grp == g %}{% set gone = state.is_out(t.id, state.last_round) %}
         <label class="opt {{ 'blocked' if gone }}" data-t="{{ t.id }}">
           <input type="radio" name="g{{ g }}" value="{{ t.id }}" class="sr" {% if form.get('g' ~ g) == t.id %}checked{% endif %} {% if gone %}disabled{% endif %}>
           {{ crest(t, gone, 'md') }}
-          <span style="min-width:0"><b>{{ t.name }}</b><span class="num">{% if gone %}Out of the cup{% elif state.last_round %}{{ nl(state.rounds[state.last_round].get(t.id, 0)) }} avg{% else %}Group {{ g }}{% endif %}</span></span>
-          <span class="flag">{% if gone %}out{% endif %}</span>
+          <span style="min-width:0"><b>{{ t.name }}</b><span class="num">{% if gone %}Uit de beker{% elif state.last_round %}{{ nl(state.rounds[state.last_round].get(t.id, 0)) }} gem.{% else %}Groep {{ g }}{% endif %}</span></span>
+          <span class="flag">{% if gone %}uit{% endif %}</span>
         </label>
         {% endfor %}
       </fieldset>
@@ -34,15 +34,15 @@
     </div>
 
     <div class="pickbar">
-      <label for="pname" class="sr">Your name</label>
-      <input id="pname" name="name" placeholder="Your name (or Hattrick team)" autocomplete="name" maxlength="40" value="{{ form.get('name', '') }}" required {% if editing and not is_admin %}readonly{% endif %}>
-      <label for="ppin" class="sr">PIN code</label>
+      <label for="pname" class="sr">Naam</label>
+      <input id="pname" name="name" placeholder="Naam (of Hattrick-team)" autocomplete="name" maxlength="40" value="{{ form.get('name', '') }}" required {% if editing and not is_admin %}readonly{% endif %}>
+      <label for="ppin" class="sr">Pincode</label>
       <input id="ppin" name="pin" inputmode="numeric" pattern="[0-9]{4,8}" maxlength="8" autocomplete="off" style="flex:0 1 150px"
-             placeholder="{{ 'New PIN (optional)' if editing or is_admin else 'Choose a PIN (4–8 digits)' }}" {% if not editing and not is_admin %}required{% endif %}>
-      <button type="button" class="btn" id="randomPick" title="Fill the open groups with random teams that make a free six">🎲 Random</button>
-      <button type="button" class="btn" id="clearPick">Clear</button>
-      <button type="submit" class="btn primary" id="submitPick" disabled>{{ 'Save my changes' if editing else 'Submit my six' }}</button>
-      <div class="status info" id="status">0 of 6 picked.</div>
+             placeholder="{{ 'Nieuwe pincode (optioneel)' if editing or is_admin else 'Kies een pincode (4–8 cijfers)' }}" {% if not editing and not is_admin %}required{% endif %}>
+      <button type="button" class="btn" id="randomPick" title="Vul de open groepen met willekeurige teams die samen een vrije combinatie zijn">🎲 Willekeurig</button>
+      <button type="button" class="btn" id="clearPick">Wissen</button>
+      <button type="submit" class="btn primary" id="submitPick" disabled>{{ 'Wijzigingen opslaan' if editing else 'Zes teams opslaan' }}</button>
+      <div class="status info" id="status">0 van 6 gekozen.</div>
       <div class="swaps" id="swaps" hidden></div>
     </div>
   </form>
@@ -67,31 +67,31 @@ if (form) {
       o.setAttribute('aria-pressed', inp.checked);
       const blocked = data && data.blocked.includes(+o.dataset.t) && !inp.disabled;
       o.classList.toggle('blocked', inp.disabled || blocked);
-      if (!inp.disabled) o.querySelector('.flag').textContent = blocked ? 'taken' : '';
+      if (!inp.disabled) o.querySelector('.flag').textContent = blocked ? 'bezet' : '';
     });
     form.querySelectorAll('.poule').forEach(f => {
       const done = !!p[f.dataset.g];
       f.classList.toggle('done', done);
-      f.querySelector('.gstate').textContent = done ? '✓ picked' : 'pick 1';
+      f.querySelector('.gstate').textContent = done ? '✓ gekozen' : 'kies 1';
     });
     swapsEl.hidden = true; swapsEl.innerHTML = '';
     if (missing.length) {
       statusEl.className = 'status info';
-      statusEl.textContent = `${6 - missing.length} of 6 picked. Still open: group ${missing.join(', ')}.` + (missing.length === 1 && data && data.blocked.length ? ' Teams marked “taken” would copy someone else\'s six.' : '');
+      statusEl.textContent = `${6 - missing.length} van 6 gekozen. Nog open: groep ${missing.join(', ')}.` + (missing.length === 1 && data && data.blocked.length ? ' Teams met “bezet” zouden een bestaande combinatie kopiëren.' : '');
       submit.disabled = true;
     } else if (data && data.free === false) {
       statusEl.className = 'status bad';
-      statusEl.textContent = '✕ Someone already has exactly these six teams. Swap one team. Still available:';
+      statusEl.textContent = '✕ Iemand heeft precies deze zes teams al. Wissel één team. Nog beschikbaar:';
       const s = data.swaps;
-      swapsEl.innerHTML = Object.keys(s).map(g => `<div class="sw"><b>Group ${g}:</b> ${s[g].map(t => `<button type="button" data-g="${g}" data-t="${t.id}">${t.name.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}</button>`).join('')}</div>`).join('');
+      swapsEl.innerHTML = Object.keys(s).map(g => `<div class="sw"><b>Groep ${g}:</b> ${s[g].map(t => `<button type="button" data-g="${g}" data-t="${t.id}">${t.name.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}</button>`).join('')}</div>`).join('');
       swapsEl.hidden = false;
       submit.disabled = true;
     } else if (data && data.free) {
       statusEl.className = 'status ok';
-      statusEl.textContent = '✓ Nobody else has this combination. You can change it until the deadline with your PIN.';
+      statusEl.textContent = '✓ Niemand anders heeft deze combinatie.';
       submit.disabled = false;
     } else {
-      statusEl.className = 'status info'; statusEl.textContent = 'Checking…'; submit.disabled = true;
+      statusEl.className = 'status info'; statusEl.textContent = 'Controleren…'; submit.disabled = true;
     }
   }
 
@@ -104,7 +104,7 @@ if (form) {
       const data = await r.json();
       if (my === seq) paint(data);
     } catch (e) {
-      statusEl.className = 'status bad'; statusEl.textContent = 'Could not check availability. Check your connection and try again.';
+      statusEl.className = 'status bad'; statusEl.textContent = 'Controleren lukte niet. Check je verbinding en probeer opnieuw.';
     }
   }
 
@@ -121,7 +121,7 @@ if (form) {
       if (data.error) { statusEl.className = 'status bad'; statusEl.textContent = data.error; return; }
       for (const g of GROUPS) { const inp = form.querySelector(`input[name="g${g}"][value="${data.picks[g]}"]`); if (inp) inp.checked = true; }
       check();
-    } catch (e) { statusEl.className = 'status bad'; statusEl.textContent = 'Could not pick random teams. Check your connection.'; }
+    } catch (e) { statusEl.className = 'status bad'; statusEl.textContent = 'Willekeurig kiezen lukte niet. Check je verbinding.'; }
   });
   document.getElementById('clearPick').addEventListener('click', () => { form.querySelectorAll('input[type=radio]').forEach(i => i.checked = false); check(); });
   form.addEventListener('submit', e => { if (submit.disabled) e.preventDefault(); else submit.disabled = true; });
