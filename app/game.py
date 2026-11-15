@@ -132,10 +132,8 @@ class State:
         for e in self.entries:
             score = sum(pts.get(t, 0) for t in self.picks(e)) / 6
             rows.append({**e, "score": score})
-        rows.sort(key=lambda r: -r["score"])
-        for i, r in enumerate(rows):
-            r["rank"] = i + 1
-        return rows
+        rows.sort(key=lambda r: (-round(r["score"], 2), alpha(r["name"])))
+        return with_ranks(rows, lambda r: round(r["score"], 2))
 
     def leaders(self):
         """Leader of every round: who was first, score, lead over number 2, teams still in."""
@@ -150,13 +148,46 @@ class State:
                         "still_in": len(self.active_after(r))})
         return out
 
-    def team_table(self, rnd):
+    def cup_stage(self, team_id, rnd):
+        """How far a team got: still in the cup = 99, otherwise the round it went out (later = further)."""
+        return self.outs[team_id]["round"] if self.is_out(team_id, rnd) else 99
+
+    def team_table(self, rnd, order="points"):
+        """Teams after a round. order: 'points' (average), 'cup' (furthest in the cup first, then average),
+        'group' or 'name' (then Pos is the position on average points). Equal values share a position and
+        are listed alphabetically."""
         pts = self.rounds.get(rnd, {})
-        rows = [{**t, "pts": pts.get(t["id"])} for t in self.teams]
-        rows.sort(key=lambda t: -(t["pts"] or 0))
-        for i, r in enumerate(rows):
-            r["rank"] = i + 1
+        rows = [{**t, "pts": pts.get(t["id"]), "stage": self.cup_stage(t["id"], rnd)} for t in self.teams]
+        avg = lambda t: round(t["pts"] or 0, 2)
+        if order == "cup":
+            rows.sort(key=lambda t: (-t["stage"], -avg(t), alpha(t["name"])))
+            return with_ranks(rows, lambda t: (t["stage"], avg(t)))
+        rows.sort(key=lambda t: (-avg(t), alpha(t["name"])))
+        rows = with_ranks(rows, avg)
+        if order == "group":
+            rows.sort(key=lambda t: (t["grp"], t["rank"], alpha(t["name"])))
+        elif order == "name":
+            rows.sort(key=lambda t: alpha(t["name"]))
         return rows
+
+
+TEAM_ORDERS = {"cup": "Verst in de beker", "points": "Gemiddelde", "group": "Groep", "name": "Naam"}
+
+
+def alpha(name):
+    """Sort key for names: alphabetical, ignoring case and accents."""
+    return unicodedata.normalize("NFD", name or "").encode("ascii", "ignore").decode().casefold()
+
+
+def with_ranks(rows, key):
+    """Positions in an already sorted list: rows with the same key value share a position (1, 2, 2, 4)."""
+    prev, rank = object(), 0
+    for i, r in enumerate(rows):
+        k = key(r)
+        if k != prev:
+            rank, prev = i + 1, k
+        r["rank"] = rank
+    return rows
 
 
 def combo_key(team_ids):
@@ -421,6 +452,7 @@ _PEN = [
 ]
 _ET = re.compile(r"\(?\s*(?:\bn\.?\s*v\.?(?=\s|\)|$)|\bnv\b|\ba\.?e\.?t\.?(?=\s|\)|$)|na verlenging|verlenging|extra time)\s*\)?", re.I)
 _SCORE = re.compile(r"(\d+)\s*[-–:]\s*(\d+)")
+_PREFIX = re.compile(r"^(?:\d+\s+(?=\d{1,2}[-./]\d{1,2}[-./]\d{2,4}\b))?(?:\d{1,2}[-./]\d{1,2}[-./]\d{2,4}\s+)?(?:\d{1,2}[:.]\d{2}\s+)?")
 
 
 def _find_team(state, text):
@@ -441,7 +473,8 @@ def parse_match_lines(text, state, active_ids):
     """Returns rows per team id (gf, ga, opp, dec, pf, pa) for our teams, plus lines it couldn't read."""
     rows, unread, notes = {}, [], []
     for raw in text.splitlines():
-        line = raw.strip()
+        # Hattrick's match list puts a number, date and time in front: "1 11-11-2026 17:00 Buurtteam - X 0 - 13"
+        line = _PREFIX.sub("", raw.replace("\u00a0", " ").strip(), count=1).strip()
         if not line or not _SCORE.search(line):
             continue
         dec, pf, pa = "regular", None, None
@@ -479,7 +512,8 @@ def parse_match_lines(text, state, active_ids):
             if me["id"] not in active_ids:
                 notes.append(f"{me['name']} ligt al uit de beker; regel voor dit team overgeslagen.")
                 continue
-            rows[me["id"]] = {"gf": my_g, "ga": their_g, "opp": opp_name.strip()[:60], "dec": dec,
+            rows[me["id"]] = {"gf": my_g, "ga": their_g, "opp": opp_name.strip()[:60],
+                              "dec": "penalties" if (dec == "regular" and my_g == their_g) else dec,
                               "pf": mpf, "pa": mpa, "etf": None, "eta": None}
     return rows, unread, notes
 

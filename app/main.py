@@ -12,6 +12,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
 from . import db, game
+from .version import CHANGES, DATE as VERSION_DATE, VERSION
 from .game import GROUPS, State
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -40,7 +41,8 @@ app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, same_site="lax", ht
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 templates.env.globals.update(forum_entry_text=game.forum_entry_text, forum_entry_markup=game.forum_entry_markup, crest=game.crest, nl=game.nl, out_text=game.out_text, GROUPS=GROUPS,
-                             RESULT_LABEL=game.RESULT_LABEL, BASE=game.BASE)
+                             RESULT_LABEL=game.RESULT_LABEL, BASE=game.BASE,
+                             VERSION=VERSION, VERSION_DATE=VERSION_DATE, CHANGES=CHANGES)
 
 
 def seed_players_once():
@@ -150,10 +152,15 @@ def leaderboard(request: Request):
 def teams_page(request: Request):
     s = State()
     rnd = pick_round(s, request)
-    rows = s.team_table(rnd) if rnd else [{**t, "pts": None, "rank": i + 1} for i, t in enumerate(s.teams)]
-    prev = {t["id"]: t for t in s.team_table(rnd - 1)} if rnd and (rnd - 1) in s.rounds else {}
+    order = request.query_params.get("order") or request.session.get("team_order") or "cup"
+    if order not in game.TEAM_ORDERS:
+        order = "cup"
+    request.session["team_order"] = order          # remembered for the next visit
+    rows = s.team_table(rnd, order) if rnd else [{**t, "pts": None, "rank": i + 1} for i, t in enumerate(s.teams)]
+    prev = {t["id"]: t for t in s.team_table(rnd - 1, order)} if rnd and (rnd - 1) in s.rounds else {}
     hide = game.picks_open() and not is_admin(request)
-    return page(request, "teams.html", state=s, rnd=rnd, rows=rows, prev=prev, hide=hide, active_tab="teams")
+    return page(request, "teams.html", state=s, rnd=rnd, rows=rows, prev=prev, hide=hide, active_tab="teams",
+                order=order, orders=game.TEAM_ORDERS)
 
 
 def editing_entry(request):
@@ -349,7 +356,7 @@ def get_file(file_id: int):
 
 @app.get("/healthz")
 def health():
-    return {"ok": True}
+    return {"ok": True, "version": VERSION}
 
 
 @app.exception_handler(404)

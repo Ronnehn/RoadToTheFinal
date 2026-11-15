@@ -278,3 +278,10 @@ fieldset.poule { min-width: 0; }
 .detail tr.sumrow td { border-top: 2px solid var(--line); border-bottom: 0; padding-top: 8px; }
 
 @media (max-width: 640px) { .hide-sm { display: none; } }
+
+/* team order + version */
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+.toolbar .seg { margin-bottom: 0; }
+.ver { border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; white-space: nowrap; }
+details.changes summary { cursor: pointer; color: var(--accent); font-weight: 600; margin-top: 4px; }
+details.changes ul { margin: 4px 0 8px; padding-left: 18px; }
