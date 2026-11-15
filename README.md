@@ -38,7 +38,8 @@ Organiser → **Enter results**:
    tick the teams that got knocked out, Publish. Your first paste can be the current standings
    (e.g. "Teams na ronde 13"); later rounds build on it.
 2. **Enter matches**: paste all results at once, one match per line, e.g. `Team A 2-1 Team B`,
-   `Team A - Team B 1-1 (ns 4-3)` or `Team A 3-2 Team B nv`. The site fills in a line per team, shows the
+   `Team A - Team B 1-1 (ns 4-3)` or `Team A 3-2 Team B nv`. Lines copied from Hattrick's match list work too: `1 11-11-2026 17:00 Buurtteam - The Fighting Hyenas 0 - 13`
+   (number, date and time are skipped; a level score is set to penalties, fill in the shootout). The site fills in a line per team, shows the
    points calculation, and knocks out every loser when you publish. You can also type or fix lines by hand.
    Two switches in Settings decide whether extra-time goals and shootout goals count.
 
@@ -72,6 +73,7 @@ The free plan sleeps after 15 minutes without visitors; the first visit then tak
 ## Files
 
 ```
+app/version.py     version number + what's new (shown in the footer and at /healthz)
 app/main.py        routes: pages, pick submit + availability check, organiser
 app/game.py        rules: points table, averages, knock-outs, standings, unique picks, crests
 app/db.py          SQLite locally / Turso in production, tables, the 24 teams in 6 groups

@@ -45,7 +45,7 @@
 {% else %}
 <form method="post" action="/admin/results/paste-matches" class="panel">
   <h2 style="margin-top:0">Alle uitslagen in één keer plakken</h2>
-  <p class="hint">Eén wedstrijd per regel, bijvoorbeeld <code>The Fighting Hyenas 2-1 FC Xelcius</code>, <code>A.I. - Revival 1-1 (ns 4-3)</code> of <code>De Remmies 3-2 FCMF nv</code>. Regels zonder een van onze teams worden overgeslagen. De regels hieronder worden ingevuld; controleer ze en klik op Publiceren.</p>
+  <p class="hint">Eén wedstrijd per regel, bijvoorbeeld <code>The Fighting Hyenas 2-1 FC Xelcius</code>, <code>A.I. - Revival 1-1 (ns 4-3)</code> of <code>De Remmies 3-2 FCMF nv</code>, of zo uit Hattricks wedstrijdlijst gekopieerd: <code>1 11-11-2026 17:00 Buurtteam - The Fighting Hyenas 0 - 13</code> (nummer, datum en tijd worden overgeslagen). Die lijst zegt niet of er verlengd is: een gelijke stand wordt op strafschoppen gezet (vul de shoot-out in), pas verlenging zo nodig aan. Regels zonder een van onze teams worden overgeslagen. De regels hieronder worden ingevuld; controleer ze en klik op Publiceren.</p>
   <textarea name="text" spellcheck="false" aria-label="Uitslagen plakken" style="min-height:150px">{{ paste_text if paste_text is defined else '' }}</textarea>
   <div class="btnrow"><button class="btn primary">Inlezen</button></div>
   {% if paste_report is defined and paste_report %}

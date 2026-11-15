@@ -3,6 +3,7 @@
 {% if state.round_list %}
 <form class="round-chip" method="get" action="/teams">
   <label for="roundSel">Stand na</label>
+  <input type="hidden" name="order" value="{{ order }}">
   <select id="roundSel" name="round" onchange="this.form.submit()">
     {% for r in state.round_list %}<option value="{{ r }}" {% if r == rnd %}selected{% endif %}>Ronde {{ r }}</option>{% endfor %}
   </select>
@@ -11,7 +12,11 @@
 {% endblock %}
 {% block content %}
 <h2>{% if rnd %}Teams na ronde {{ rnd }}{% else %}De 24 bekerteams{% endif %}</h2>
-<p class="lead">Het gemiddelde per wedstrijd van elk team telt mee in de score van de spelers.{% if hide %} Hoeveel spelers elk team kozen, zie je na de deadline.{% endif %}</p>
+<p class="lead">Het gemiddelde per wedstrijd van elk team telt mee in de score van de spelers.{% if hide %} Hoeveel spelers elk team kozen, zie je na de deadline.{% endif %}
+{% if rnd %}{% if order == 'cup' %}Eerst de teams die nog in de beker liggen, dan de uitgeschakelde teams (hoe later uitgeschakeld, hoe hoger), elk op gemiddelde.{% elif order in ('group', 'name') %}Pos is de plaats op gemiddelde.{% endif %} Teams met hetzelfde gemiddelde delen een plaats en staan op alfabet.{% endif %}</p>
+{% if rnd %}<div class="toolbar"><span class="muted">Volgorde:</span>
+  <div class="seg" role="group" aria-label="Volgorde van de teams">{% for k, label in orders.items() %}<a class="segbtn" href="/teams?round={{ rnd }}&amp;order={{ k }}" aria-selected="{{ 'true' if order == k else 'false' }}">{{ label }}</a>{% endfor %}</div>
+</div>{% endif %}
 <div class="tablebox"><table class="teams">
   <thead><tr><th>Pos</th><th></th><th>Team</th><th>Groep</th><th>Beker</th><th class="r">Deze ronde</th><th class="r">Gemiddelde</th>{% if not hide %}<th>Gekozen door</th>{% endif %}</tr></thead>
   <tbody>

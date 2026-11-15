@@ -52,7 +52,8 @@
   <main>{% block content %}{% endblock %}</main>
 
   <footer style="margin-top:40px;color:var(--muted);font-size:.85rem;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">
-    <span>Road to the Final · bekervoorspelling</span>
+    <span>Road to the Final · bekervoorspelling · <span class="ver">versie {{ VERSION }}</span> ({{ VERSION_DATE }})
+      <details class="changes"><summary>Wat is er nieuw</summary>{% for v, d, notes in CHANGES %}<div><b>{{ v }}</b> · {{ d }}<ul>{% for n in notes %}<li>{{ n }}</li>{% endfor %}</ul></div>{% endfor %}</details></span>
     {% if not is_admin %}<a href="/admin/login" style="color:var(--muted)">Organisatie</a>{% endif %}
   </footer>
 </div>
