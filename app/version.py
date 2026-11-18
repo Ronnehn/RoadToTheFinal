@@ -1,7 +1,12 @@
 """Version of the site. Raise VERSION and add a line at the top of CHANGES with every update."""
-VERSION = "1.1"
-DATE = "15-11-2026"
+VERSION = "1.2"
+DATE = "18-11-2026"
 CHANGES = [
+    ("1.2", "18-11-2026", [
+        "Forumtabellen: is een tabel langer dan één forumbericht toestaat, dan wordt hij verdeeld over meerdere "
+        "berichten (deel 1/2, 2/2 ...), elk met eigen kop en kopieerknop. Tabellen worden alleen tussen rijen geknipt.",
+        "Onder elk blok staat het aantal tekens; de limiet (standaard 3.000) stel je in bovenaan Forumtabellen.",
+    ]),
     ("1.1", "15-11-2026", [
         "Uitslagen plakken: regels uit Hattricks wedstrijdlijst met nummer, datum en tijd ervoor worden nu gelezen "
         "(bv. \"1 11-11-2026 17:00 Buurtteam - The Fighting Hyenas 0 - 13\"). Een gelijke stand zonder shoot-out "

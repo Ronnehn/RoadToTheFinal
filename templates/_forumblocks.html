@@ -1,0 +1,34 @@
+{# blocks: list of (title, parts, id, height); parts is a list of posts that each fit the forum limit #}
+{% for title, parts, id, height in blocks %}
+{% if parts %}
+<div class="panel">
+  <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
+    <h2 style="margin:0">{{ title }}{% if parts|length > 1 %} <span class="hint" style="font-weight:400">· {{ parts|length }} berichten</span>{% endif %}</h2>
+    {% if parts|length == 1 %}<button type="button" class="btn primary sm" data-copy="{{ id }}-1">Kopieer</button>{% endif %}
+  </div>
+  {% if parts|length > 1 %}
+  <p class="hint" style="margin:6px 0 0">Te lang voor één forumbericht (max. {{ nl(forum_limit, 0) }} tekens), dus verdeeld over {{ parts|length }} berichten. Plaats ze na elkaar.</p>
+  {% endif %}
+  {% for part in parts %}
+  {% set n = forum_len(part) %}
+  {% if parts|length > 1 %}
+  <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px">
+    <b>Bericht {{ loop.index }} van {{ parts|length }}</b>
+    <button type="button" class="btn primary sm" data-copy="{{ id }}-{{ loop.index }}">Kopieer bericht {{ loop.index }}</button>
+  </div>
+  {% endif %}
+  <textarea id="{{ id }}-{{ loop.index }}" readonly style="min-height:{{ height }}px;margin-top:10px">{{ part }}</textarea>
+  <div class="hint" style="text-align:right;margin-top:2px{% if n > forum_limit %};color:#c0392b;font-weight:600{% endif %}">{{ nl(n, 0) }} / {{ nl(forum_limit, 0) }} tekens{% if n > forum_limit %} · één regel is langer dan de limiet{% endif %}</div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endfor %}
+<script>
+if (!window.__rtfCopy) { window.__rtfCopy = 1;
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-copy]'); if (!b) return;
+  const ta = document.getElementById(b.dataset.copy);
+  try { await navigator.clipboard.writeText(ta.value); } catch { ta.select(); document.execCommand('copy'); }
+  const t = b.textContent; b.textContent = 'Gekopieerd'; setTimeout(() => b.textContent = t, 1500);
+}); }
+</script>

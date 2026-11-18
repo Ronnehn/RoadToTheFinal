@@ -40,7 +40,8 @@ app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, same_site="lax", https_only=ON_RENDER, max_age=60 * 60 * 12)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
-templates.env.globals.update(forum_entry_text=game.forum_entry_text, forum_entry_markup=game.forum_entry_markup, crest=game.crest, nl=game.nl, out_text=game.out_text, GROUPS=GROUPS,
+templates.env.globals.update(split_forum=game.split_forum, forum_len=game.forum_len, forum_limit_now=game.forum_limit,
+                             forum_entry_text=game.forum_entry_text, forum_entry_markup=game.forum_entry_markup, crest=game.crest, nl=game.nl, out_text=game.out_text, GROUPS=GROUPS,
                              RESULT_LABEL=game.RESULT_LABEL, BASE=game.BASE,
                              VERSION=VERSION, VERSION_DATE=VERSION_DATE, CHANGES=CHANGES)
 
@@ -466,7 +467,21 @@ def forum(request: Request):
     rnd = pick_round(s, request)
     players, teams, kos = game.forum_tables(s, rnd) if rnd else ("", "", "")
     picks = game.forum_picks_table(s) if s.entries else ""
-    return page(request, "admin/forum.html", state=s, rnd=rnd, players=players, teams=teams, kos=kos, picks=picks, active_tab="forum")
+    limit = game.forum_limit()
+    sp = lambda t: game.split_forum(t, limit)
+    return page(request, "admin/forum.html", state=s, rnd=rnd, players=sp(players), teams=sp(teams), kos=sp(kos),
+                picks=sp(picks), forum_limit=limit, active_tab="forum")
+
+
+@app.post("/admin/forum/limit")
+async def forum_limit(request: Request):
+    require_admin(request)
+    form = await request.form()
+    v = (form.get("forum_limit") or "").replace(".", "").strip()
+    if v.isdigit() and 200 <= int(v) <= 100000:
+        game.set_setting("forum_limit", int(v))
+    rnd = (form.get("round") or "").strip()
+    return RedirectResponse("/admin/forum" + (f"?round={rnd}" if rnd.isdigit() else ""), 303)
 
 
 @app.get("/admin/export.xlsx")

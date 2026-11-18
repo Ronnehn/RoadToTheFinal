@@ -30,6 +30,12 @@ Render's disk is wiped on every deploy.
 - **Knocked out**: a team that loses (regular time, extra time or penalties) is out. It keeps its average but
   earns nothing more. The leaderboard says who went out, how, and how many players lost a team.
 
+## Forum posts
+
+Organiser → **Forum tables** gives ready-made Hattrick forum code. A table longer than the character limit
+(default 3,000, set at the top of that page; line breaks count as 2) is split over several posts, cut between rows,
+each with its own title (deel 1/2 …), table header and copy button.
+
 ## Weekly results
 
 Organiser → **Enter results**:
