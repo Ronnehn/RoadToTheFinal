@@ -16,27 +16,15 @@
 {% if not rnd %}
 <p class="hint">Voer eerst een ronde in; dan verschijnen de standen hier.</p>
 {% endif %}
+<form method="post" action="/admin/forum/limit" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 14px">
+  <label for="forumLimit"><b>Max. tekens per forumbericht</b></label>
+  <input id="forumLimit" type="number" name="forum_limit" min="200" max="100000" step="100" value="{{ forum_limit }}" style="width:110px">
+  <input type="hidden" name="round" value="{{ rnd or '' }}">
+  <button class="btn sm" type="submit">Opslaan</button>
+  <span class="hint">Langere tabellen worden automatisch over meerdere berichten verdeeld (regelovergangen tellen voor 2).</span>
+</form>
 {% if rnd or picks %}
-{% for title, text, id in [('Stand spelers', players, 'fPlayers'), ('Stand teams', teams, 'fTeams'), ('Uitgeschakeld deze ronde', kos, 'fKos'), ('Keuzes per speler', picks, 'fPicks')] %}
-{% if text %}
-<div class="panel">
-  <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
-    <h2 style="margin:0">{{ title }}</h2>
-    <button type="button" class="btn primary sm" data-copy="{{ id }}">Kopieer</button>
-  </div>
-  <textarea id="{{ id }}" readonly style="min-height:{{ 160 if id == 'fKos' else 280 }}px;margin-top:10px">{{ text }}</textarea>
-</div>
+{% set blocks = [('Stand spelers', players, 'fPlayers', 280), ('Stand teams', teams, 'fTeams', 280), ('Uitgeschakeld deze ronde', kos, 'fKos', 160), ('Keuzes per speler', picks, 'fPicks', 280)] %}
+{% include "_forumblocks.html" %}
 {% endif %}
-{% endfor %}
-{% endif %}
-{% endblock %}
-{% block scripts %}
-<script>
-document.addEventListener('click', async e => {
-  const b = e.target.closest('[data-copy]'); if (!b) return;
-  const ta = document.getElementById(b.dataset.copy);
-  try { await navigator.clipboard.writeText(ta.value); } catch { ta.select(); document.execCommand('copy'); }
-  const t = b.textContent; b.textContent = 'Gekopieerd'; setTimeout(() => b.textContent = t, 1500);
-});
-</script>
 {% endblock %}

@@ -940,3 +940,64 @@ def forum_entry_markup(state, e):
         rows.append(f"[tr][td]{g}[/td][td]{state.by_id[state.picks(e)[i]]['name']}[/td][/tr]")
     rows.append("[/table]")
     return "\n".join(rows)
+
+
+# ---- split forum code over several posts ----
+FORUM_LIMIT_DEFAULT = 3000
+
+
+def forum_limit():
+    try:
+        return max(200, int(settings().get("forum_limit") or FORUM_LIMIT_DEFAULT))
+    except ValueError:
+        return FORUM_LIMIT_DEFAULT
+
+
+def forum_len(text):
+    """Characters as the forum counts them; a line break is sent as two (CR LF), so count it twice to be safe."""
+    return len(text) + text.count("\n")
+
+
+def _with_part(title, i, n):
+    tag = f" (deel {i}/{n})"
+    return title[:-4] + tag + "[/b]" if title.endswith("[/b]") else title + tag
+
+
+def split_forum(text, limit=None):
+    """Split forum code into posts that each fit within the limit.
+    Tables are cut between rows; every part gets the title with (deel x/y), its own [table] and header row."""
+    if not text:
+        return []
+    limit = limit or forum_limit()
+    if forum_len(text) <= limit:
+        return [text]
+    lines = text.split("\n")
+    if "[table]" in lines and "[/table]" in lines:
+        ti, te = lines.index("[table]"), lines.index("[/table]")
+        title, head, rows, tail = lines[:ti], [], lines[ti + 1:te], lines[te + 1:]
+        if rows and "[th]" in rows[0]:
+            head, rows = [rows[0]], rows[1:]
+        wrap = lambda chunk: ["[table]"] + head + chunk + ["[/table]"]
+    else:
+        title, rows, tail = lines[:1], lines[1:], []
+        wrap = lambda chunk: chunk
+    n = 2
+    for _ in range(10):
+        parts, chunk = [], []
+
+        def build(chunk, i, last):
+            t = ([_with_part(title[0], i, n)] + title[1:]) if title else []
+            return "\n".join(t + wrap(chunk) + (tail if last else []))
+        for r in rows:
+            if chunk and forum_len(build(chunk + [r], len(parts) + 1, False)) > limit:
+                parts.append(chunk)
+                chunk = []
+            chunk.append(r)
+        parts.append(chunk)
+        # the closing text goes in the last part; give it its own part if it no longer fits
+        if tail and len(parts[-1]) > 1 and forum_len(build(parts[-1], len(parts), True)) > limit:
+            parts.append([parts[-1].pop()])
+        if len(parts) == n:
+            return [build(c, i + 1, i == n - 1) for i, c in enumerate(parts)]
+        n = len(parts)
+    return [build(c, i + 1, i == len(parts) - 1) for i, c in enumerate(parts)]
