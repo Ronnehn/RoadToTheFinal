@@ -444,6 +444,31 @@ def delete_entry(request: Request, eid: int):
     return RedirectResponse("/admin?msg=Speler+verwijderd.#players", 303)
 
 
+@app.post("/admin/entries/{eid}/rename")
+async def rename_entry(request: Request, eid: int):
+    """Fix a player's name (e.g. a typo) without touching their six teams."""
+    from urllib.parse import quote_plus
+    require_admin(request)
+    entry = db.one("SELECT * FROM rtf_entries WHERE id = ?", (eid,))
+    if not entry:
+        raise HTTPException(404)
+    form = await request.form()
+    name = " ".join((form.get("name") or "").split())[:40]
+    back = lambda m: RedirectResponse(f"/admin?msg={quote_plus(m)}#players", 303)
+    if len(name) < 2:
+        return back("Een naam heeft minstens 2 tekens.")
+    if name == entry["name"]:
+        return back("Naam is niet veranderd.")
+    clash = db.one("SELECT id, name FROM rtf_entries WHERE name_key = ? AND id != ?", (game.norm(name), eid))
+    if clash:
+        return back(f"De naam “{name}” is al in gebruik door {clash['name']}.")
+    try:
+        db.execute("UPDATE rtf_entries SET name = ?, name_key = ? WHERE id = ?", (name, game.norm(name), eid))
+    except Exception:
+        return back(f"De naam “{name}” is net bezet. Kies een andere naam.")
+    return back(f"Naam gewijzigd: {entry['name']} → {name}.")
+
+
 @app.get("/admin/entries/{eid}/forum", response_class=HTMLResponse)
 def entry_forum(request: Request, eid: int):
     require_admin(request)

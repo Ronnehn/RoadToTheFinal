@@ -61,7 +61,9 @@
   <div class="tablebox" style="border:0"><table class="plain" id="playerTable">
     <thead><tr><th>Naam</th>{% for g in GROUPS %}<th>Groep {{ g }}</th>{% endfor %}<th></th></tr></thead>
     <tbody>{% for e in state.entries|sort(attribute='name', case_sensitive=False) %}
-      <tr><td><b>{{ e.name }}</b></td>
+      <tr data-name="{{ e.name|e }}"><td><form class="teamform" method="post" action="/admin/entries/{{ e.id }}/rename" style="display:flex;gap:6px;min-width:190px">
+          <input type="text" name="name" value="{{ e.name }}" maxlength="40" required aria-label="Naam van {{ e.name }}" style="font-weight:600">
+          <button class="btn sm" title="Naam opslaan">Opslaan</button></form></td>
         {% for tid in state.picks(e) %}{% set t = state.by_id[tid] %}{% set o = state.last_round and state.is_out(tid, state.last_round) %}
         <td class="{{ 'is-out' if o }}" style="font-size:.85rem"><div class="tm">{{ crest(t, o) }}<span>{{ t.name }}</span></div></td>{% endfor %}
         <td><div class="row-actions" style="display:flex;gap:6px"><a class="btn sm" href="/admin/entries/{{ e.id }}/forum" style="text-decoration:none">Forumcode</a>
@@ -70,7 +72,7 @@
     {% endfor %}</tbody>
   </table></div>
   {% else %}<p class="hint">Nog geen spelers. Gebruik <a href="/admin/import">Importeren van forum</a> of <a href="/pick/new">+ Speler toevoegen</a>.</p>{% endif %}
-  <p class="hint" style="margin-top:10px">{% if settings.self_signup == '1' %}Spelers wijzigen hun eigen teams met hun pincode tot de deadline. {% endif %}De organisatie kan altijd late inzendingen toevoegen en ieders teams wijzigen; dubbele combinaties worden nog steeds tegengehouden.</p>
+  <p class="hint" style="margin-top:10px">{% if settings.self_signup == '1' %}Spelers wijzigen hun eigen teams met hun pincode tot de deadline. {% endif %}Typfout in een naam? Pas hem aan in het naamveld en klik Opslaan. De organisatie kan altijd late inzendingen toevoegen en ieders teams wijzigen; dubbele combinaties worden nog steeds tegengehouden.</p>
 </div>
 
 <div class="panel" id="teams">
@@ -105,7 +107,7 @@
 const ps = document.getElementById('playerSearch');
 if (ps) ps.addEventListener('input', () => {
   const q = ps.value.toLowerCase().trim();
-  document.querySelectorAll('#playerTable tbody tr').forEach(tr => { tr.hidden = q && !tr.textContent.toLowerCase().includes(q); });
+  document.querySelectorAll('#playerTable tbody tr').forEach(tr => { tr.hidden = q && !((tr.dataset.name || '') + ' ' + tr.textContent).toLowerCase().includes(q); });
 });
 </script>
 {% endblock %}
