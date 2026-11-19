@@ -69,10 +69,23 @@ def seed_players_once():
     print(f"Season 85: {added} players added.")
 
 
+def fix_names_once():
+    """One-time typo fix asked for by the organiser: Robbie's -> Ribbie's."""
+    if game.settings().get("fixed_ribbie_name") == "1":
+        return
+    old = db.one("SELECT id, name FROM rtf_entries WHERE name_key IN ('robbies', 'robbie') ORDER BY name_key DESC")
+    if old and not db.one("SELECT id FROM rtf_entries WHERE name_key = ?", (game.norm(old["name"].replace("Robbie", "Ribbie")),)):
+        new = old["name"].replace("Robbie", "Ribbie")
+        db.execute("UPDATE rtf_entries SET name = ?, name_key = ? WHERE id = ?", (new, game.norm(new), old["id"]))
+        print(f"Renamed {old['name']} -> {new}")
+    game.set_setting("fixed_ribbie_name", "1")
+
+
 @app.on_event("startup")
 def startup():
     db.init_db()
     seed_players_once()
+    fix_names_once()
     if not admin_accounts():
         print("WARNING: no organiser accounts (set ADMIN_USERS or ADMIN_PASSWORD); the organiser login is disabled.")
 

@@ -3,6 +3,7 @@ VERSION = "1.3"
 DATE = "19-11-2026"
 CHANGES = [
     ("1.3", "19-11-2026", [
+        "Typfout hersteld: Robbie's heet nu Ribbie's.",
         "Organisatie → Spelers: de naam van een speler is nu direct aan te passen (naamveld + Opslaan), "
         "zonder de zes teams te raken. Dubbele namen worden geweigerd.",
     ]),
