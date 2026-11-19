@@ -1,7 +1,11 @@
 """Version of the site. Raise VERSION and add a line at the top of CHANGES with every update."""
-VERSION = "1.2"
-DATE = "18-11-2026"
+VERSION = "1.3"
+DATE = "19-11-2026"
 CHANGES = [
+    ("1.3", "19-11-2026", [
+        "Organisatie → Spelers: de naam van een speler is nu direct aan te passen (naamveld + Opslaan), "
+        "zonder de zes teams te raken. Dubbele namen worden geweigerd.",
+    ]),
     ("1.2", "18-11-2026", [
         "Forumtabellen: is een tabel langer dan één forumbericht toestaat, dan wordt hij verdeeld over meerdere "
         "berichten (deel 1/2, 2/2 ...), elk met eigen kop en kopieerknop. Tabellen worden alleen tussen rijen geknipt.",
