@@ -81,11 +81,32 @@ def fix_names_once():
     game.set_setting("fixed_ribbie_name", "1")
 
 
+def fix_self_opponents_once():
+    """One-time fix: matches saved with the team itself as opponent (the old reader took "Glamour&Pain" for A.I.).
+    Only Glamour&Pain - A.I. is known; any other such row is reported in the log, not changed."""
+    if game.settings().get("fixed_self_opponents") == "1":
+        return
+    known = {"ai": "Glamour&Pain"}
+    for m in db.query("SELECT m.round, m.team_id, m.opp, t.name FROM rtf_matches m JOIN rtf_teams t ON t.id = m.team_id"):
+        if game.norm(m["opp"] or "") != game.norm(m["name"]):
+            continue
+        right = known.get(game.norm(m["name"]))
+        if right:
+            db.execute("UPDATE rtf_matches SET opp = ? WHERE round = ? AND team_id = ?", (right, m["round"], m["team_id"]))
+            db.execute("UPDATE rtf_outs SET opp = ? WHERE team_id = ? AND round = ? AND opp = ?",
+                       (right, m["team_id"], m["round"], m["opp"]))
+            print(f"Round {m['round']}: opponent of {m['name']} set to {right}")
+        else:
+            print(f"Round {m['round']}: {m['name']} has itself as opponent; fix it by entering the round again")
+    game.set_setting("fixed_self_opponents", "1")
+
+
 @app.on_event("startup")
 def startup():
     db.init_db()
     seed_players_once()
     fix_names_once()
+    fix_self_opponents_once()
     if not admin_accounts():
         print("WARNING: no organiser accounts (set ADMIN_USERS or ADMIN_PASSWORD); the organiser login is disabled.")
 

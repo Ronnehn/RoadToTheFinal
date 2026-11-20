@@ -481,17 +481,31 @@ _PREFIX = re.compile(r"^(?:\d+\s+(?=\d{1,2}[-./]\d{1,2}[-./]\d{2,4}\b))?(?:\d{1,
 
 
 def _find_team(state, text):
-    text = text.strip(" -–:\t|#*")
+    text = text.strip(" -–:\t|#*[]()")
     if not text:
         return None, ""
     exact = state.team_by_name(text)
     if exact:
         return exact, text
-    n = norm(text)
-    # longest team name contained in the text (handles extra words around the name)
-    hits = [t for t in state.teams if norm(t["name"]) and (norm(t["name"]) in n or (len(n) >= 4 and n in norm(t["name"])))]
-    hits.sort(key=lambda t: -len(norm(t["name"])))
+    n, words = norm(text), _words(text)
+
+    def contains(t):
+        # a team name inside the text (extra words around it): as whole words, or letters only for names of 5+
+        # letters. (Before: letters only for every name, so "Glamour&Pain" was read as A.I. - "glamourpAIn".)
+        tw, tn = _words(t["name"]), norm(t["name"])
+        if not tn:
+            return False
+        if tw and any(words[i:i + len(tw)] == tw for i in range(len(words) - len(tw) + 1)):
+            return True
+        return len(tn) >= 5 and (tn in n or (len(n) >= 5 and n in tn))
+    hits = sorted((t for t in state.teams if contains(t)), key=lambda t: -len(norm(t["name"])))
     return (hits[0] if hits else None), text
+
+
+def _words(s):
+    """'A.I.' -> ['a', 'i']; 'Glamour&Pain' -> ['glamour', 'pain'] (lowercase, no accents)."""
+    s = unicodedata.normalize("NFD", s or "").encode("ascii", "ignore").decode().lower()
+    return re.findall(r"[a-z0-9]+", s)
 
 
 def parse_match_lines(text, state, active_ids):
@@ -499,7 +513,8 @@ def parse_match_lines(text, state, active_ids):
     rows, unread, notes = {}, [], []
     for raw in text.splitlines():
         # Hattrick's match list puts a number, date and time in front: "1 11-11-2026 17:00 Buurtteam - X 0 - 13"
-        line = _PREFIX.sub("", raw.replace("\u00a0", " ").strip(), count=1).strip()
+        line = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", raw.replace("\u00a0", " "))   # a pasted link: "[A - B](https://...)"
+        line = _PREFIX.sub("", line.strip(), count=1).strip()
         if not line or not _SCORE.search(line):
             continue
         dec, pf, pa = "regular", None, None
@@ -530,6 +545,11 @@ def parse_match_lines(text, state, active_ids):
         if not ta and not tb:
             unread.append(raw.strip())
             continue
+        if ta and tb and ta["id"] == tb["id"]:      # one team can't play itself: keep the side that names it exactly
+            if state.team_by_name(b_txt.strip(" -–:\t|#*")):
+                ta = None
+            else:
+                tb = None
         for me, my_g, their_g, opp_name, mpf, mpa in ((ta, ga_, gb_, tb["name"] if tb else b_name, pf, pa),
                                                      (tb, gb_, ga_, ta["name"] if ta else a_name, pa, pf)):
             if not me:
