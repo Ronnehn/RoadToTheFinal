@@ -1,7 +1,11 @@
 """Version of the site. Raise VERSION and add a line at the top of CHANGES with every update."""
-VERSION = "1.4"
+VERSION = "1.4.1"
 DATE = "19-11-2026"
 CHANGES = [
+    ("1.4.1", "19-11-2026", [
+        "Uitslagen plakken: een teamnaam wordt alleen nog als hele woorden herkend (korte namen als A.I.). "
+        "\"Glamour&Pain - A.I.\" werd gelezen als A.I. tegen A.I.; die wedstrijd staat nu goed.",
+    ]),
     ("1.4", "19-11-2026", [
         "Nieuw tabblad Uitslagen: per ronde de wedstrijd van elk team (uitslag, wedstrijdpunten, gemiddelde voor en na), "
         "met uitleg waarom een gemiddelde omlaag kan gaan.",
