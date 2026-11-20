@@ -41,7 +41,7 @@ app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, same_site="lax", ht
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 templates.env.globals.update(split_forum=game.split_forum, forum_len=game.forum_len, forum_limit_now=game.forum_limit,
-                             forum_entry_text=game.forum_entry_text, forum_entry_markup=game.forum_entry_markup, crest=game.crest, nl=game.nl, out_text=game.out_text, GROUPS=GROUPS,
+                             forum_entry_text=game.forum_entry_text, forum_entry_markup=game.forum_entry_markup, crest=game.crest, nl=game.nl, out_text=game.out_text, match_text=game.match_text, match_result=game.match_result, GROUPS=GROUPS,
                              RESULT_LABEL=game.RESULT_LABEL, BASE=game.BASE,
                              VERSION=VERSION, VERSION_DATE=VERSION_DATE, CHANGES=CHANGES)
 
@@ -175,6 +175,28 @@ def teams_page(request: Request):
     hide = game.picks_open() and not is_admin(request)
     return page(request, "teams.html", state=s, rnd=rnd, rows=rows, prev=prev, hide=hide, active_tab="teams",
                 order=order, orders=game.TEAM_ORDERS)
+
+
+@app.get("/uitslagen", response_class=HTMLResponse)
+def results_public(request: Request):
+    """Every team's match of a round (as the organiser entered it), its points and how its average changed."""
+    s = State()
+    rnd = pick_round(s, request)
+    rows = []
+    if rnd:
+        prev = s.rounds.get(rnd - 1, {})
+        played = s.matches.get(rnd, {})
+        for t in s.teams:
+            if (rnd - 1) in s.rounds and s.is_out(t["id"], rnd - 1):
+                continue                                    # already out before this round: no match
+            m = played.get(t["id"])
+            avg, pv = s.rounds[rnd].get(t["id"]), prev.get(t["id"])
+            rows.append({"team": t, "m": m, "avg": avg, "prev": pv, "out": s.is_out(t["id"], rnd),
+                         "diff": (avg - pv) if (avg is not None and pv is not None) else None})
+        rows.sort(key=lambda r: (r["out"], -(r["m"]["points"] if r["m"] and r["m"].get("points") is not None else -1e12),
+                                 -(r["avg"] or 0), game.alpha(r["team"]["name"])))
+    return page(request, "uitslagen.html", state=s, rnd=rnd, rows=rows, active_tab="uitslagen",
+                has_matches=bool(s.matches.get(rnd)), win=game.base_table().get(rnd))
 
 
 def editing_entry(request):
