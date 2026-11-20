@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block chip %}
+{% if state.round_list %}
+<form class="round-chip" method="get" action="/uitslagen">
+  <label for="roundSel">Uitslagen van</label>
+  <select id="roundSel" name="round" onchange="this.form.submit()">
+    {% for r in state.round_list %}<option value="{{ r }}" {% if r == rnd %}selected{% endif %}>Ronde {{ r }}</option>{% endfor %}
+  </select>
+</form>
+{% else %}{{ super() }}{% endif %}
+{% endblock %}
+{% block content %}
+{% if not rnd %}
+  <h2>Uitslagen</h2>
+  <p class="lead">Er is nog geen ronde gespeeld.</p>
+{% else %}
+  <h2>Uitslagen ronde {{ rnd }}</h2>
+  <p class="lead">Elke wedstrijd van ronde {{ rnd }} van de teams die nog in de beker lagen: de uitslag, de punten die de wedstrijd opleverde en wat dat met het gemiddelde van het team deed.</p>
+  {% if not has_matches %}
+  <p class="hint">Deze ronde is ingevoerd als stand (alleen de gemiddelden), niet als wedstrijden. Daarom staan hier geen uitslagen, wel hoe elk gemiddelde veranderde.</p>
+  {% endif %}
+  <div class="tablebox"><table class="teams">
+    <thead><tr><th>Team</th><th>Uitslag</th><th class="r">Wedstrijdpunten</th><th class="r">Gemiddelde</th><th class="r">Verschil</th></tr></thead>
+    <tbody>
+    {% for r in rows %}{% set t = r.team %}{% set m = r.m %}
+      <tr class="{{ 'is-out' if r.out }}">
+        <td><div class="tm">{{ crest(t, r.out) }}<span><b>{{ t.name }}</b> <span class="poule-tag">{{ t.grp }}</span>{% if r.out %}<br><span class="out-note">Uitgeschakeld</span>{% endif %}</span></div></td>
+        <td class="res {{ match_result(m) or '' }}">{% if m %}{{ match_text(m) }}{% else %}<span class="muted">—</span>{% endif %}</td>
+        <td class="r num">{{ nl(m.points, 0) if m and m.points is not none else '—' }}</td>
+        <td class="r num">{% if r.prev is not none %}<span class="muted">{{ nl(r.prev) }} →</span> {% endif %}<b>{{ nl(r.avg) if r.avg is not none else '—' }}</b></td>
+        <td class="r num">{% if r.diff is not none %}<span style="color:var({{ '--down' if r.diff < 0 else '--up' }})">{{ '' if r.diff < 0 else '+' }}{{ nl(r.diff) }}</span>{% else %}—{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+
+  <div class="explain">
+    <b>Waarom gaat een gemiddelde omlaag?</b>
+    Een team krijgt per wedstrijd punten{% if win %} (ronde {{ rnd }}: winst {{ nl(win, 0) }}, verlies {{ nl(win - 30000, 0) }}, na verlenging of strafschoppen ertussenin){% endif %}, plus 501 per doelpunt voor en −500 per doelpunt tegen.
+    Het gemiddelde is de som van al die wedstrijden gedeeld door het aantal wedstrijden. Levert een wedstrijd minder punten op dan het gemiddelde tot nu toe, dan zakt het gemiddelde.
+    Dat gebeurt vooral bij verlies, en vroeg in het seizoen het hardst: met twee wedstrijden telt de tweede voor de helft mee.
+    Je eigen score is het gemiddelde van je zes teams, dus zakt die mee. Het kleine getal onder je score in de stand is dat verschil met de vorige ronde.
+  </div>
+{% endif %}
+{% endblock %}

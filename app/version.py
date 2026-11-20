@@ -1,7 +1,13 @@
 """Version of the site. Raise VERSION and add a line at the top of CHANGES with every update."""
-VERSION = "1.3"
+VERSION = "1.4"
 DATE = "19-11-2026"
 CHANGES = [
+    ("1.4", "19-11-2026", [
+        "Nieuw tabblad Uitslagen: per ronde de wedstrijd van elk team (uitslag, wedstrijdpunten, gemiddelde voor en na), "
+        "met uitleg waarom een gemiddelde omlaag kan gaan.",
+        "Stand: bij een speler staat onder elk van zijn teams nu de uitslag van die ronde en wat die opleverde.",
+        "Stand: uitgelegd dat het kleine getal onder een score het verschil met de vorige ronde is.",
+    ]),
     ("1.3", "19-11-2026", [
         "Typfout hersteld: Robbie's heet nu Ribbie's.",
         "Organisatie → Spelers: de naam van een speler is nu direct aan te passen (naamveld + Opslaan), "

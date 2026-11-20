@@ -285,3 +285,11 @@ fieldset.poule { min-width: 0; }
 .ver { border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; white-space: nowrap; }
 details.changes summary { cursor: pointer; color: var(--accent); font-weight: 600; margin-top: 4px; }
 details.changes ul { margin: 4px 0 8px; padding-left: 18px; }
+
+/* match lines (Uitslagen page, player details) */
+.mline { font-size: .8rem; color: var(--muted); }
+.mline.win { color: var(--up); } .mline.loss { color: var(--down); }
+table.teams td.res { white-space: nowrap; font-weight: 600; }
+table.teams td.res.win { color: var(--up); } table.teams td.res.loss { color: var(--down); }
+.explain { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 16px; margin: 18px 0 0; font-size: .9rem; }
+.explain b { font: 700 1.05rem var(--display); text-transform: uppercase; display: block; margin-bottom: 4px; }

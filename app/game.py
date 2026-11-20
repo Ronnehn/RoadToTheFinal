@@ -102,6 +102,10 @@ class State:
             self.rounds.setdefault(r["round"], {})[r["team_id"]] = r["avg"]
             self.played.setdefault(r["round"], {})[r["team_id"]] = r["played"]
         self.round_list = sorted(self.rounds)
+        # the match scores the organiser entered (only rounds entered as matches, not as a pasted standings list)
+        self.matches = {}
+        for m in db.query("SELECT * FROM rtf_matches"):
+            self.matches.setdefault(m["round"], {})[m["team_id"]] = m
 
     @property
     def last_round(self):
@@ -325,6 +329,27 @@ def save_round(state, rnd, avgs, outs, matches=None):
                       (rnd, tid, m.get("opp"), m.get("gf"), m.get("ga"), m.get("dec"), m.get("etf"), m.get("eta"),
                        m.get("pf"), m.get("pa"), m.get("points"))))
     db.execute_many(stmts)
+
+
+def match_text(m):
+    """'13-0 tegen Buurtteam', '2-2 tegen A.I. (strafschoppen 4-3)', '1-2 tegen X na verlenging'."""
+    if not m or m.get("gf") is None or m.get("ga") is None:
+        return ""
+    t = f"{m['gf']}-{m['ga']}" + (f" tegen {m['opp']}" if m.get("opp") else "")
+    if m.get("dec") == "extra":
+        t += " na verlenging"
+    elif m.get("dec") == "penalties" and m.get("pf") is not None and m.get("pa") is not None:
+        t += f" (strafschoppen {m['pf']}-{m['pa']})"
+    return t
+
+
+def match_result(m):
+    """'win' / 'loss' (or None) for a stored match."""
+    if not m or m.get("gf") is None or m.get("ga") is None:
+        return None
+    if m.get("dec") == "penalties" and m.get("pf") is not None and m.get("pa") is not None:
+        return "win" if m["pf"] > m["pa"] else "loss"
+    return "win" if m["gf"] > m["ga"] else "loss"
 
 
 def out_text(o):

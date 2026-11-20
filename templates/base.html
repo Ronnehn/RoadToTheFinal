@@ -39,6 +39,7 @@
   <nav class="tabs" aria-label="Onderdelen">
     <a href="/" {% if active_tab == 'leaderboard' %}aria-current="page"{% endif %}>Stand</a>
     <a href="/teams" {% if active_tab == 'teams' %}aria-current="page"{% endif %}>Teams</a>
+    <a href="/uitslagen" {% if active_tab == 'uitslagen' %}aria-current="page"{% endif %}>Uitslagen</a>
     {% if self_signup or is_admin %}<a href="/pick" {% if active_tab == 'pick' %}aria-current="page"{% endif %}>{{ 'Kies je teams' if self_signup else 'Inzending toevoegen / wijzigen' }}</a>{% endif %}
     {% if is_admin %}
     <a href="/admin" {% if active_tab == 'admin' %}aria-current="page"{% endif %}>Organisatie</a>
